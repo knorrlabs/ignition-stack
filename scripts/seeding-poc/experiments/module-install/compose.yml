@@ -20,10 +20,14 @@ x-ignition-environment: &ignition-environment
   GATEWAY_ADMIN_PASSWORD: ${ADMIN_PASSWORD}
   IGNITION_EDITION: standard
   TZ: ${TZ:-UTC}
-  # GATEWAY_MODULES_ENABLED is intentionally settable from the host env so
-  # the experiment can flip values without editing this compose. Empty string
-  # means "do not pass the variable".
+  # The three module env vars cooperate for clean third-party install:
+  #   GATEWAY_MODULES_ENABLED: enable/whitelist (restricts uninstall)
+  #   ACCEPT_MODULE_LICENSES:  auto-accept the third-party EULA
+  #   ACCEPT_MODULE_CERTS:     auto-trust the module signing certificate
+  # All three take comma-delimited fully-qualified module identifiers.
   GATEWAY_MODULES_ENABLED: ${GATEWAY_MODULES_ENABLED:-}
+  ACCEPT_MODULE_LICENSES: ${ACCEPT_MODULE_LICENSES:-}
+  ACCEPT_MODULE_CERTS: ${ACCEPT_MODULE_CERTS:-}
 
 services:
   gateway:
