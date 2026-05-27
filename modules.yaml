@@ -1,0 +1,83 @@
+# Catalog of third-party Ignition modules and JDBC drivers the CLI knows how
+# to download, sha-verify, cache, and wire into a generated stack.
+#
+# This is the single source of truth a maintainer bumps per Ignition release.
+# Schema: ignition_stack/catalog/schema.py (pydantic-validated at load).
+#
+# Pinning a new entry:
+#   1. Set ignition_versions to the exact 8.3.x versions you have verified.
+#   2. Download the artifact and compute sha256: `shasum -a 256 <file>`.
+#      Until pinned, set sha256 to 'UNPINNED'; `modules validate` rejects
+#      this so a half-bumped catalog cannot ship to users.
+#   3. For modules, set module_identifier to the FQID found in module.xml
+#      inside the .modl zip (NOT the install path).
+#   4. install_path is the absolute path inside the gateway container.
+#      Modules go under user-lib/modules/, drivers under user-lib/jdbc/.
+#
+# Phase-1 finding (see scripts/seeding-poc/experiments/module-install/):
+#   GATEWAY_MODULES_ENABLED, ACCEPT_MODULE_LICENSES, and ACCEPT_MODULE_CERTS
+#   take comma-delimited fully-qualified module IDENTIFIERS, not paths.
+#   The path is only used for the volume-mount / bootstrap copy.
+
+version: 1
+
+entries:
+  - name: mqtt-engine
+    kind: module
+    vendor: cirrus-link
+    ignition_versions: ["8.3.6"]
+    module_identifier: com.cirruslink.mqtt.engine.gateway
+    download_url: https://inductiveautomation.com/downloads/third-party-modules/8.3.6/MQTT-Engine-signed.modl
+    sha256: UNPINNED
+    install_path: /usr/local/bin/ignition/user-lib/modules/MQTT-Engine.modl
+    requires_license_env: null
+    requires_manual_download: false
+
+  - name: mqtt-transmission
+    kind: module
+    vendor: cirrus-link
+    ignition_versions: ["8.3.6"]
+    module_identifier: com.cirruslink.mqtt.transmission.gateway
+    download_url: https://inductiveautomation.com/downloads/third-party-modules/8.3.6/MQTT-Transmission-signed.modl
+    sha256: UNPINNED
+    install_path: /usr/local/bin/ignition/user-lib/modules/MQTT-Transmission.modl
+    requires_license_env: null
+    requires_manual_download: false
+
+  - name: mqtt-distributor
+    kind: module
+    vendor: cirrus-link
+    ignition_versions: ["8.3.6"]
+    module_identifier: com.cirruslink.mqtt.distributor.gateway
+    download_url: https://inductiveautomation.com/downloads/third-party-modules/8.3.6/MQTT-Distributor-signed.modl
+    sha256: UNPINNED
+    install_path: /usr/local/bin/ignition/user-lib/modules/MQTT-Distributor.modl
+    requires_license_env: null
+    requires_manual_download: false
+
+  - name: mysql-jdbc
+    kind: jdbc_driver
+    vendor: oracle
+    ignition_versions: ["8.3.6"]
+    download_url: https://repo1.maven.org/maven2/com/mysql/mysql-connector-j/9.1.0/mysql-connector-j-9.1.0.jar
+    sha256: UNPINNED
+    install_path: /usr/local/bin/ignition/user-lib/jdbc/mysql-connector-j-9.1.0.jar
+    requires_license_env: null
+    requires_manual_download: false
+
+  # MCP module is Early Access (survey-gated); no public download URL exists.
+  # See q-mcp-delivery in 02-design.md: catalog flag + optional maintainer
+  # local_source_path. Until GA, `modules download` skips this entry (or
+  # copies from local_source_path if the maintainer has configured one and
+  # the file exists on disk).
+  - name: mcp-module
+    kind: module
+    vendor: inductive-automation
+    ignition_versions: ["8.3.6"]
+    module_identifier: com.inductiveautomation.mcp.gateway
+    download_url: null
+    sha256: UNPINNED
+    install_path: /usr/local/bin/ignition/user-lib/modules/MCP.modl
+    requires_license_env: null
+    requires_manual_download: true
+    local_source_path: null
