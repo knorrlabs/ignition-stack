@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ignition-stack"
-version = "0.0.0"
+version = "0.1.0"
 description = "CLI that generates ready-to-run Docker Compose stacks for Ignition 8.3 SCADA demos and SE engagements"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -19,11 +19,12 @@ classifiers = [
   "Topic :: System :: Installation/Setup",
 ]
 dependencies = [
-  # Phase 3 minimum: catalog loader + modules subcommands. Phase 2 adds
-  # questionary, ruamel.yaml, jinja2 for the wizard and compose engine.
+  # Phase 2: walking-skeleton CLI surface (typer/pydantic/rich).
+  # Phase 3: catalog loader + modules subcommands (pyyaml/httpx).
+  # questionary, ruamel.yaml, jinja2 arrive with later phases.
   "typer>=0.12",
-  "rich>=13.7",
   "pydantic>=2.7",
+  "rich>=13.7",
   "pyyaml>=6.0",
   "httpx>=0.27",
 ]
@@ -47,6 +48,9 @@ packages = ["ignition_stack"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "modules.yaml" = "ignition_stack/modules.yaml"
+
+[tool.hatch.build.targets.sdist]
+include = ["ignition_stack", "tests", "README.md", "pyproject.toml", "modules.yaml"]
 
 [tool.ruff]
 line-length = 100

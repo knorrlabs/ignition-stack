@@ -70,7 +70,9 @@ def _fixture_catalog(
 def test_modules_list_exits_zero(tmp_path: Path, file_server) -> None:
     base_url, served = file_server
     (served / "MQTT-Engine.modl").write_bytes(b"x")
-    catalog = _fixture_catalog(tmp_path, mqtt_url=f"{base_url}/MQTT-Engine.modl", mqtt_sha=_sha256(b"x"))
+    catalog = _fixture_catalog(
+        tmp_path, mqtt_url=f"{base_url}/MQTT-Engine.modl", mqtt_sha=_sha256(b"x")
+    )
 
     result = runner.invoke(app, ["modules", "list", "--catalog", str(catalog)])
 
@@ -80,7 +82,8 @@ def test_modules_list_exits_zero(tmp_path: Path, file_server) -> None:
 
 
 def test_modules_validate_exit_zero_when_reachable_and_pinned(
-    tmp_path: Path, file_server,
+    tmp_path: Path,
+    file_server,
 ) -> None:
     """Gate: `validate` exits 0 when every URL is reachable and every checksum matches."""
     base_url, served = file_server
@@ -113,7 +116,8 @@ def test_modules_validate_names_unreachable_entry(tmp_path: Path) -> None:
 
 
 def test_modules_download_writes_to_cache_with_matching_sha(
-    tmp_path: Path, file_server,
+    tmp_path: Path,
+    file_server,
 ) -> None:
     """Gate: `modules download --ignition-version 8.3.6 mqtt-engine` writes
     the .modl to modules/cache/ and the file's sha256 matches the catalog."""
@@ -149,7 +153,8 @@ def test_modules_download_writes_to_cache_with_matching_sha(
 
 
 def test_modules_download_skips_mcp_with_explanation(
-    tmp_path: Path, file_server,
+    tmp_path: Path,
+    file_server,
 ) -> None:
     """Gate: the MCP entry is marked requires_manual_download: true and is
     skipped by download with an explanatory message."""
@@ -183,7 +188,8 @@ def test_modules_download_skips_mcp_with_explanation(
 
 
 def test_modules_download_offline_fails_when_cache_missing(
-    tmp_path: Path, file_server,
+    tmp_path: Path,
+    file_server,
 ) -> None:
     base_url, served = file_server
     (served / "MQTT-Engine.modl").write_bytes(b"x")
