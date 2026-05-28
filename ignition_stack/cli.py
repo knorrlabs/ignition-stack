@@ -1,8 +1,9 @@
 """Top-level Typer application.
 
 Phase 2 implements ``init`` for the standalone+Postgres walking skeleton.
-``modules``, ``reset``, and ``wipe`` are registered as visible placeholders
-so the command surface is stable from day one; later phases fill them in.
+Phase 3 wires the real ``modules`` sub-app (catalog list/validate/download);
+``reset`` and ``wipe`` remain visible placeholders so the command surface
+is stable from day one, with later phases filling them in.
 """
 
 from __future__ import annotations
@@ -13,6 +14,7 @@ import typer
 from rich.console import Console
 
 from ignition_stack import __version__
+from ignition_stack.commands.modules import modules_app
 from ignition_stack.compose import write_project
 from ignition_stack.config import ProjectConfig
 
@@ -23,6 +25,7 @@ app = typer.Typer(
     no_args_is_help=True,
     rich_markup_mode="rich",
 )
+app.add_typer(modules_app, name="modules")
 
 console = Console()
 
@@ -77,16 +80,6 @@ def init(
     console.print(
         f"  open http://localhost:{config.gateway_http_port}  (admin / {config.admin_password})"
     )
-
-
-@app.command()
-def modules() -> None:
-    """Manage the Ignition module catalog. (placeholder; arrives in Phase 3)"""
-    console.print(
-        "[yellow]ignition-stack modules[/yellow] is not yet implemented. "
-        "Arrives in Phase 3 (module catalog)."
-    )
-    raise typer.Exit(code=2)
 
 
 @app.command()

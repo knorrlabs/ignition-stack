@@ -130,10 +130,14 @@ def test_bootstrap_script_is_executable(runner: CliRunner, tmp_path: Path) -> No
 
 @pytest.mark.parametrize(
     "command",
-    ["modules", "reset", "wipe"],
+    ["reset", "wipe"],
 )
 def test_placeholder_commands_exit_non_zero(runner: CliRunner, command: str) -> None:
-    """Phase-3+ commands are visible but explicitly not-yet-implemented."""
+    """Phase-7 lifecycle commands are visible but explicitly not-yet-implemented.
+
+    ``modules`` was a phase-2 placeholder; phase 3 replaced it with the real
+    sub-app (see tests/test_modules_cli.py).
+    """
     result = runner.invoke(app, [command])
     assert result.exit_code == 2, result.stdout
     assert "not yet implemented" in result.stdout.lower()
