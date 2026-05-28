@@ -64,6 +64,16 @@ def write_project(config: ProjectConfig, target_dir: Path) -> list[Path]:
     written.append(_write_compose(config, target_dir))
     written.append(_write_env(config, target_dir))
 
+    proxy_file = _write_reverse_proxy_readme(config, target_dir)
+    if proxy_file is not None:
+        written.append(proxy_file)
+    dropin_file = _write_mcp_dropin_readme(config, target_dir)
+    if dropin_file is not None:
+        written.append(dropin_file)
+    post_setup_file = _write_post_setup_stub(config, target_dir)
+    if post_setup_file is not None:
+        written.append(post_setup_file)
+
     return written
 
 
@@ -97,9 +107,7 @@ def _overlay_gateway_resources(config: ProjectConfig, target_dir: Path) -> list[
     gateway so each can reach the shared service.
     """
     written: list[Path] = []
-    gw_dirs = (
-        [gw.name for gw in config.gateways] if config.is_multi_gateway else ["ignition"]
-    )
+    gw_dirs = [gw.name for gw in config.gateways] if config.is_multi_gateway else ["ignition"]
     for src_dir, _ in _seed_sources(config):
         resources_tree = src_dir / "seed" / "gateway-resources"
         if not resources_tree.is_dir():
@@ -264,6 +272,127 @@ def _render_env(config: ProjectConfig) -> str:
 
 def _static_root() -> Traversable:
     return resources.files(_STATIC_PACKAGE) / _STATIC_PROFILE
+
+
+_TRAEFIK_README = """\
+# Reverse proxy: ia-eknorr/traefik-reverse-proxy
+
+This project's wizard offered to install the preferred Traefik reverse
+proxy here. The repo lives at https://github.com/ia-eknorr/traefik-reverse-proxy
+and is **not** cloned automatically (the CLI never bundles a proxy
+silently). Install it manually:
+
+```sh
+cd {path}
+git clone https://github.com/ia-eknorr/traefik-reverse-proxy.git .
+```
+
+Then read that repo's README for routing and TLS setup. The gateway is
+already exposed on a host port via `docker-compose.yaml`; the proxy can
+either replace that mapping or sit in front of it.
+"""
+
+_MCP_DROPIN_README = """\
+# MCP module drop-in
+
+The Ignition MCP module is Early-Access and gated behind a survey, so
+this CLI cannot bundle it. To enable the MCP service in this stack:
+
+1. Request the module from
+   https://inductiveautomation.com/early-access (Ignition MCP).
+2. Drop the resulting `.modl` file into this directory:
+   `modules/dropin/<filename>.modl`.
+3. Re-run `docker compose up -d`. The bootstrap will copy any `.modl`
+   present here into the gateway's `user-lib/modules/` on startup.
+
+n8n is already configured in this stack; the MCP module is what
+exposes the Ignition side of the conversation to n8n's workflows.
+"""
+
+_POST_SETUP_HEADER = """\
+# Post-setup steps
+
+Phase 7 generates this file from the seedability matrix + the resolved
+config; the entries below are what the Phase-6 profiles flag for manual
+follow-up. Anything not listed here is pre-seeded by the CLI.
+"""
+
+
+def _write_reverse_proxy_readme(config: ProjectConfig, target_dir: Path) -> Path | None:
+    if config.reverse_proxy is None:
+        return None
+    proxy_dir = target_dir / config.reverse_proxy.path
+    proxy_dir.mkdir(parents=True, exist_ok=True)
+    dst = proxy_dir / "README.md"
+    dst.write_bytes(_TRAEFIK_README.format(path=config.reverse_proxy.path).encode("utf-8"))
+    return dst
+
+
+def _write_mcp_dropin_readme(config: ProjectConfig, target_dir: Path) -> Path | None:
+    if not config.mcp_dropin:
+        return None
+    dropin_dir = target_dir / "modules" / "dropin"
+    dropin_dir.mkdir(parents=True, exist_ok=True)
+    dst = dropin_dir / "README.md"
+    dst.write_bytes(_MCP_DROPIN_README.encode("utf-8"))
+    return dst
+
+
+_SCALEOUT_GATEWAY_NETWORK_STEP = """\
+## Approve the scaleout gateway-network link
+
+Scaleout demos depend on a gateway-network link between `frontend` and
+`backend`. The Phase-1 seedability matrix (see
+`docs/ignition-seeding-matrix.md`, row `gateway-network-link`) marks this
+row **partial**: each gateway's UUID is file-seeded by the bootstrap, and
+the outbound peer-link path is known, but the per-link approval step
+happens in the gateway UI and the exact peer-link JSON schema was not
+pinned in Phase 1.
+
+To finish the link manually after `docker compose up -d`:
+
+1. Open the `frontend` gateway (`http://localhost:9088`), navigate to
+   Config -> Networking -> Gateway Network, and add an outgoing connection
+   to `${COMPOSE_PROJECT_NAME}-backend` on port 8060.
+2. Open the `backend` gateway (`http://localhost:9089`) and approve the
+   incoming connection request.
+3. Repeat in reverse if you need bidirectional aggregation.
+"""
+
+
+def _write_post_setup_stub(config: ProjectConfig, target_dir: Path) -> Path | None:
+    """Emit a minimal POST-SETUP.md when the project has any manual follow-ups.
+
+    Phase 7 owns the real generator; this stub captures only what Phase-6
+    profiles introduce: the MCP drop-in, the Traefik install, and the
+    scaleout gateway-network approval (the matrix's ``gateway-network-link``
+    row is partial - UUID + outbound path are file-seedable, per-link
+    approval is UI-only). Phase 7 replaces the body with matrix-driven
+    entries.
+    """
+    sections: list[str] = []
+    if config.profile == "scaleout":
+        sections.append(_SCALEOUT_GATEWAY_NETWORK_STEP.rstrip())
+    if config.mcp_dropin:
+        sections.append(
+            "## Drop in the Ignition MCP module\n\n"
+            "The MCP module is EA-gated; download it from the early-access "
+            "survey and place the `.modl` in `modules/dropin/`. See "
+            "`modules/dropin/README.md`."
+        )
+    if config.reverse_proxy is not None:
+        sections.append(
+            f"## Install the reverse proxy\n\n"
+            f"The wizard scaffolded `{config.reverse_proxy.path}/` with a README "
+            f"that walks you through cloning ia-eknorr/traefik-reverse-proxy and "
+            f"routing this stack through it."
+        )
+    if not sections:
+        return None
+    body = _POST_SETUP_HEADER + "\n" + "\n\n".join(sections) + "\n"
+    dst = target_dir / "POST-SETUP.md"
+    dst.write_bytes(body.encode("utf-8"))
+    return dst
 
 
 def _walk_template(root: Traversable, prefix: str = "") -> list[tuple[str, bytes, bool]]:

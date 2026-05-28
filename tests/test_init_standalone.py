@@ -48,12 +48,14 @@ def test_init_without_name_exits_non_zero(runner: CliRunner) -> None:
 
 def test_init_with_invalid_name_exits_non_zero(runner: CliRunner, tmp_path: Path) -> None:
     """Names that violate the pydantic regex fail with exit code 2."""
-    result = runner.invoke(app, ["init", "Bad Name", "-o", str(tmp_path)])
+    result = runner.invoke(
+        app, ["init", "Bad Name", "--profile", "standalone", "-o", str(tmp_path)]
+    )
     assert result.exit_code == 2, result.stdout
 
 
 def test_init_writes_expected_tree(runner: CliRunner, tmp_path: Path) -> None:
-    result = runner.invoke(app, ["init", "demo", "-o", str(tmp_path)])
+    result = runner.invoke(app, ["init", "demo", "--profile", "standalone", "-o", str(tmp_path)])
     assert result.exit_code == 0, result.stdout
 
     project = tmp_path / "demo"
@@ -70,7 +72,7 @@ def test_init_writes_expected_tree(runner: CliRunner, tmp_path: Path) -> None:
 
 
 def test_init_compose_matches_golden(runner: CliRunner, tmp_path: Path) -> None:
-    result = runner.invoke(app, ["init", "demo", "-o", str(tmp_path)])
+    result = runner.invoke(app, ["init", "demo", "--profile", "standalone", "-o", str(tmp_path)])
     assert result.exit_code == 0, result.stdout
 
     generated = (tmp_path / "demo" / "docker-compose.yaml").read_bytes()
@@ -79,7 +81,9 @@ def test_init_compose_matches_golden(runner: CliRunner, tmp_path: Path) -> None:
 
 
 def test_init_env_carries_resolved_values(runner: CliRunner, tmp_path: Path) -> None:
-    result = runner.invoke(app, ["init", "my-stack", "-o", str(tmp_path)])
+    result = runner.invoke(
+        app, ["init", "my-stack", "--profile", "standalone", "-o", str(tmp_path)]
+    )
     assert result.exit_code == 0, result.stdout
 
     env_text = (tmp_path / "my-stack" / ".env").read_text(encoding="utf-8")
@@ -91,7 +95,7 @@ def test_init_env_carries_resolved_values(runner: CliRunner, tmp_path: Path) -> 
 
 def test_every_generated_file_is_lf_only(runner: CliRunner, tmp_path: Path) -> None:
     """The cross-platform contract. No CR bytes anywhere in generated text."""
-    result = runner.invoke(app, ["init", "demo", "-o", str(tmp_path)])
+    result = runner.invoke(app, ["init", "demo", "--profile", "standalone", "-o", str(tmp_path)])
     assert result.exit_code == 0, result.stdout
 
     project = tmp_path / "demo"
@@ -109,16 +113,16 @@ def test_every_generated_file_is_lf_only(runner: CliRunner, tmp_path: Path) -> N
 
 def test_init_refuses_to_clobber_existing_project(runner: CliRunner, tmp_path: Path) -> None:
     """Running init twice into the same name fails rather than silently overwriting."""
-    first = runner.invoke(app, ["init", "demo", "-o", str(tmp_path)])
+    first = runner.invoke(app, ["init", "demo", "--profile", "standalone", "-o", str(tmp_path)])
     assert first.exit_code == 0, first.stdout
 
-    second = runner.invoke(app, ["init", "demo", "-o", str(tmp_path)])
+    second = runner.invoke(app, ["init", "demo", "--profile", "standalone", "-o", str(tmp_path)])
     assert second.exit_code != 0
     assert "not empty" in second.stdout.lower() or "exists" in second.stdout.lower()
 
 
 def test_bootstrap_script_is_executable(runner: CliRunner, tmp_path: Path) -> None:
-    result = runner.invoke(app, ["init", "demo", "-o", str(tmp_path)])
+    result = runner.invoke(app, ["init", "demo", "--profile", "standalone", "-o", str(tmp_path)])
     assert result.exit_code == 0, result.stdout
 
     script = tmp_path / "demo" / "scripts" / "docker-bootstrap.sh"

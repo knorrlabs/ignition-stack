@@ -1,0 +1,27 @@
+"""Architecture profiles: pre-canned shapes that turn intent into config.
+
+Importing this package registers every built-in profile by side-effect so
+``get_profile("scaleout")`` works without explicit module imports.
+"""
+
+from ignition_stack.profiles import hub_and_spoke, mcp_n8n, scaleout, standalone  # noqa: F401
+from ignition_stack.profiles.advisory import Advisory, spoke_advisory
+from ignition_stack.profiles.base import (
+    Profile,
+    ProfileOptions,
+    build_profile,
+    get_profile,
+    list_profiles,
+)
+from ignition_stack.profiles.hub_and_spoke import ProfileError
+
+__all__ = [
+    "Advisory",
+    "Profile",
+    "ProfileError",
+    "ProfileOptions",
+    "build_profile",
+    "get_profile",
+    "list_profiles",
+    "spoke_advisory",
+]
