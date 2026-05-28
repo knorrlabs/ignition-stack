@@ -320,7 +320,9 @@ def test_bootstrap_script_drops_cached_modules_into_user_lib() -> None:
     assert "user-lib/modules" in script, "bootstrap must drop modules into user-lib/modules"
 
 
-def test_database_kind_other_than_postgres_rejected() -> None:
-    """Phase 4 ships postgres only; mysql/mongo arrive with the Phase 5 service catalog."""
-    with pytest.raises(ValueError, match="postgres only"):
-        DatabaseConfig(kind="mysql")
+def test_unsupported_database_kind_rejected() -> None:
+    """The four catalog databases are valid; anything else is a config error."""
+    for kind in ("postgres", "mysql", "mariadb", "mongo"):
+        assert DatabaseConfig(kind=kind).kind == kind
+    with pytest.raises(ValueError, match="unsupported database kind"):
+        DatabaseConfig(kind="oracle")
