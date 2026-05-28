@@ -12,6 +12,7 @@ Phases 5-6 extend this with the service catalog and profile-class shaping.
 from __future__ import annotations
 
 import re
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -157,6 +158,47 @@ class DatabaseConfig(BaseModel):
         return _DB_IMAGE_ENV[self.kind]
 
 
+class ReverseProxyConfig(BaseModel):
+    """Optional reverse-proxy scaffolding.
+
+    Default behavior (``ProjectConfig.reverse_proxy is None``) emits a plain
+    host-port mapping on each gateway and assumes the user already runs Traefik,
+    nginx, or another proxy somewhere - or doesn't need one at all. Setting
+    this to a :class:`ReverseProxyConfig` lays down the ``ia-eknorr/traefik-
+    reverse-proxy`` README at ``path`` and adds a POST-SETUP entry pointing at
+    that repo. The CLI never silently bundles a proxy.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["traefik"] = Field(
+        default="traefik",
+        description="Reverse-proxy flavor. Only Traefik is supported today.",
+    )
+    path: str = Field(
+        default="reverse-proxy",
+        description=(
+            "Relative directory under the project root that holds the proxy "
+            "README + install instructions (e.g. 'reverse-proxy', "
+            "'infra/proxy'). Must be a non-empty relative POSIX path."
+        ),
+    )
+
+    @field_validator("path")
+    @classmethod
+    def _validate_path(cls, v: str) -> str:
+        stripped = v.strip()
+        if not stripped:
+            raise ValueError("reverse-proxy path must not be empty")
+        if stripped.startswith("/") or "\\" in stripped:
+            raise ValueError(
+                "reverse-proxy path must be a relative POSIX path "
+                "(no leading '/' and no backslashes)"
+            )
+        # Normalize "./foo" -> "foo" so the writer can join cleanly.
+        return stripped.removeprefix("./")
+
+
 class ProjectConfig(BaseModel):
     """Resolved configuration for a single generated project."""
 
@@ -192,6 +234,31 @@ class ProjectConfig(BaseModel):
             "When False (default), all services share a single bridge network. "
             "When True, Ignition + reverse-proxy services land on 'frontend' and "
             "DB + broker services land on 'backend' (per 02-design.md)."
+        ),
+    )
+    reverse_proxy: ReverseProxyConfig | None = Field(
+        default=None,
+        description=(
+            "Reverse-proxy scaffolding. None (default) emits plain host-port "
+            "mappings. Set when the user accepts the wizard's offer to install "
+            "ia-eknorr/traefik-reverse-proxy at a chosen path."
+        ),
+    )
+    mcp_dropin: bool = Field(
+        default=False,
+        description=(
+            "True when the project should scaffold modules/dropin/ for the "
+            "EA-gated MCP module. Set by the mcp-n8n profile."
+        ),
+    )
+    profile: str | None = Field(
+        default=None,
+        description=(
+            "Slug of the architecture profile that produced this config "
+            "('standalone', 'scaleout', 'hub-and-spoke', 'mcp-n8n'). "
+            "Informational - the compose engine reads from the resolved "
+            "fields, not this slug - but lets generated files (header "
+            "comment, lifecycle records) name the profile they came from."
         ),
     )
 
