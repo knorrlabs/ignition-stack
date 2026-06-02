@@ -15,6 +15,11 @@ const config: Config = {
   organizationName: "ia-eknorr",
   projectName: "ignition-stack",
 
+  future: {
+    v4: true,
+    faster: true, // @docusaurus/faster: Rust/SWC build
+  },
+
   // Fail the build on any broken internal link. The validation contract for
   // this site is "npm run build with no broken-link warnings", so anything
   // less than throw would let drift slip through.
@@ -33,7 +38,31 @@ const config: Config = {
     },
   },
 
-  themes: ["@docusaurus/theme-mermaid"],
+  themes: [
+    "@docusaurus/theme-mermaid",
+    // Offline full-text search. This is the site's search function (no Algolia).
+    // docsRouteBasePath must match the docs preset's routeBasePath ("/") for
+    // docs-only mode, otherwise the indexer scans /docs/* and emits nothing.
+    [
+      require.resolve("@easyops-cn/docusaurus-search-local"),
+      { hashed: true, indexBlog: false, docsRouteBasePath: "/" },
+    ],
+  ],
+
+  plugins: [
+    "@docusaurus/plugin-ideal-image",
+    "docusaurus-plugin-image-zoom",
+    [
+      "@signalwire/docusaurus-plugin-llms-txt",
+      {
+        siteTitle: "ignition-stack",
+        siteDescription:
+          "Generate ready-to-run Docker Compose stacks for Ignition 8.3 SCADA demos and SE engagements.",
+        depth: 2,
+        content: { enableLlmsFullTxt: true },
+      },
+    ],
+  ],
 
   i18n: {
     defaultLocale: "en",
@@ -60,6 +89,10 @@ const config: Config = {
   ],
 
   themeConfig: {
+    // Pin the mermaid theme per color mode so diagrams stay legible in dark mode.
+    mermaid: {
+      theme: { light: "default", dark: "dark" },
+    },
     navbar: {
       title: "ignition-stack",
       items: [
@@ -96,6 +129,11 @@ const config: Config = {
       theme: prismThemes.github,
       darkTheme: prismThemes.dracula,
       additionalLanguages: ["bash", "yaml", "json", "makefile", "docker"],
+    },
+    // Click-to-zoom for docusaurus-plugin-image-zoom.
+    zoom: {
+      selector: ".markdown img",
+      background: { light: "rgb(255, 255, 255)", dark: "rgb(50, 50, 50)" },
     },
   } satisfies Preset.ThemeConfig,
 };
