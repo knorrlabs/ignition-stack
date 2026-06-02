@@ -1,0 +1,108 @@
+name: ci
+
+# Proves the CLI installs and generates correct projects on macOS, Linux, and
+# Windows, and that a generated standalone + Postgres stack actually boots a
+# gateway to RUNNING on Linux. The docs site build/deploy lives in docs.yml.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: ${{ matrix.os }} install + golden tests
+    strategy:
+      # Don't cancel the other OSes when one fails - a Windows-only break is
+      # exactly the kind of regression this matrix exists to surface.
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.11"
+
+      # Build and install the package the way a user gets it, so the console
+      # script entry point is exercised on every OS, not just imported.
+      - name: Install the CLI
+        run: uv sync --extra dev
+
+      - name: CLI generates a project
+        shell: bash
+        run: |
+          uv run ignition-stack --version
+          uv run ignition-stack init ci-demo \
+            --profile standalone -o "$RUNNER_TEMP/gen"
+
+      - name: Golden tests
+        run: uv run --extra dev pytest
+
+      # The cross-platform contract: files the CLI writes must be LF-only even
+      # when generated on Windows. The golden suite asserts this too, but a
+      # dedicated check keeps the guarantee legible in the Windows job log.
+      - name: Generated files are LF-only
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          uv run python - "$RUNNER_TEMP/gen/ci-demo" <<'PY'
+          import pathlib
+          import sys
+
+          root = pathlib.Path(sys.argv[1])
+          offenders = [
+              str(p.relative_to(root))
+              for p in root.rglob("*")
+              if p.is_file() and b"\r" in p.read_bytes()
+          ]
+          if offenders:
+              print("Generated files contain CR bytes (expected LF-only):")
+              print("\n".join(offenders))
+              sys.exit(1)
+          print("All generated files are LF-only.")
+          PY
+
+  compose-smoke:
+    name: Linux compose up smoke (gateway reaches RUNNING)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.11"
+      - name: Install the CLI
+        run: uv sync --extra dev
+
+      - name: Generate a standalone + Postgres project
+        run: >-
+          uv run ignition-stack init smoke
+          --profile standalone -o "$RUNNER_TEMP"
+
+      - name: docker compose up -d
+        working-directory: ${{ runner.temp }}/smoke
+        run: docker compose --env-file .env up -d
+
+      - name: Wait for the gateway to reach RUNNING
+        working-directory: ${{ runner.temp }}/smoke
+        run: |
+          deadline=$((SECONDS + 360))
+          url=http://localhost:9088/StatusPing
+          until curl -sf "$url" | grep -q '"state":"RUNNING"'; do
+            if [ "$SECONDS" -ge "$deadline" ]; then
+              echo "::error::gateway never reached RUNNING within timeout"
+              docker compose --env-file .env logs --no-color
+              exit 1
+            fi
+            sleep 5
+          done
+          echo "gateway is RUNNING"
+
+      - name: Tear down (containers + volumes)
+        if: always()
+        working-directory: ${{ runner.temp }}/smoke
+        run: docker compose --env-file .env down -v
