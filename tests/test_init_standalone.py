@@ -118,7 +118,11 @@ def test_init_refuses_to_clobber_existing_project(runner: CliRunner, tmp_path: P
 
     second = runner.invoke(app, ["init", "demo", "--profile", "standalone", "-o", str(tmp_path)])
     assert second.exit_code != 0
-    assert "not empty" in second.stdout.lower() or "exists" in second.stdout.lower()
+    # Rich wraps console output to the terminal width (80 cols when there is no
+    # TTY, as in CI), which can split the message mid-phrase. Collapse
+    # whitespace so we assert on the message's meaning, not its wrap points.
+    message = " ".join(second.stdout.lower().split())
+    assert "not empty" in message or "exists" in message
 
 
 def test_bootstrap_script_is_executable(runner: CliRunner, tmp_path: Path) -> None:
