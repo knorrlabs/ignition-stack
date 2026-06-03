@@ -89,6 +89,10 @@ const config: Config = {
   ],
 
   themeConfig: {
+    // Follow the visitor's OS theme on first load instead of forcing light mode.
+    colorMode: {
+      respectPrefersColorScheme: true,
+    },
     // Pin the mermaid theme per color mode so diagrams stay legible in dark mode.
     mermaid: {
       theme: { light: "default", dark: "dark" },
