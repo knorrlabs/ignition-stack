@@ -41,7 +41,7 @@ from ignition_stack.profiles import (
     spoke_advisory,
 )
 from ignition_stack.services.resolver import resolve
-from ignition_stack.wizard import walk
+from ignition_stack.wizard import QuestionaryPrompter, walk
 
 GOLDEN_DIR = Path(__file__).parent / "golden" / "profiles"
 
@@ -544,3 +544,101 @@ def test_wizard_summary_decline_marks_unconfirmed() -> None:
     )
     outcome = walk("demo", prompter)
     assert outcome.confirmed is False
+
+
+# --------------------------------------------------------------------------- #
+# Real QuestionaryPrompter adapter
+#
+# Regression: `select()` must hand questionary the choice *value* (the slug)
+# as `default`, not its rendered label. Questionary validates `default`
+# against choice values and raises ValueError otherwise — which crashed
+# `init` at the very first profile prompt. The ScriptedPrompter used above
+# bypasses this adapter, so it needs its own coverage.
+#
+# These spy on questionary's entry points rather than letting prompt_toolkit
+# build a real prompt: construction queries the Windows console screen buffer
+# and crashes in headless CI (NoConsoleScreenBufferError). The spy captures
+# what the adapter passes and asserts questionary's own contract directly.
+# --------------------------------------------------------------------------- #
+
+
+class _StubQuestion:
+    """Stands in for the questionary ``Question`` the spies return, so the
+    adapter's ``.unsafe_ask()`` call yields a known answer without any
+    prompt_toolkit / console machinery."""
+
+    def __init__(self, answer: str) -> None:
+        self._answer = answer
+
+    def unsafe_ask(self) -> str:
+        return self._answer
+
+
+def test_questionary_select_default_resolves_to_choice_value(monkeypatch) -> None:
+    import questionary
+
+    # Same (value, label) shape the wizard builds: a padded label whose text
+    # is *not* a valid questionary default.
+    choices = [(p.slug, f"{p.slug:<14} - {p.summary}") for p in list_profiles()]
+    captured: dict = {}
+
+    def spy_select(message, *, choices, default=None, **kwargs):
+        captured["choices"] = choices
+        captured["default"] = default
+        return _StubQuestion(choices[0].value)
+
+    monkeypatch.setattr(questionary, "select", spy_select)
+
+    answer = QuestionaryPrompter().select("Architecture profile?", choices, default="standalone")
+
+    # questionary's contract: `default` must be a choice value (or None). The
+    # bug passed the rendered label, which is not in this set.
+    values = [c.value for c in captured["choices"]]
+    assert captured["default"] in values
+    assert captured["default"] == "standalone"
+    assert answer == values[0]  # round-trips the selected slug
+
+
+def test_questionary_select_drops_unknown_default(monkeypatch) -> None:
+    """A default that isn't among the choices falls back to None rather than
+    being passed through — questionary would reject an unknown default."""
+    import questionary
+
+    choices = [(p.slug, p.summary) for p in list_profiles()]
+    captured: dict = {}
+
+    def spy_select(message, *, choices, default=None, **kwargs):
+        captured["default"] = default
+        return _StubQuestion("scaleout")
+
+    monkeypatch.setattr(questionary, "select", spy_select)
+
+    answer = QuestionaryPrompter().select("Profile?", choices, default="does-not-exist")
+    assert captured["default"] is None
+    assert answer == "scaleout"
+
+
+def test_questionary_integer_coerces_and_validates(monkeypatch) -> None:
+    """The integer adapter (the hub-and-spoke spoke-count prompt) feeds
+    questionary a string default and an inline validator, then coerces the
+    answer back to int. Pure coverage — this path was never broken — capturing
+    the validator lets us exercise each branch directly."""
+    import questionary
+
+    captured: dict = {}
+
+    def spy_text(message, *, default=None, validate=None, **kwargs):
+        captured["default"] = default
+        captured["validate"] = validate
+        return _StubQuestion("5")
+
+    monkeypatch.setattr(questionary, "text", spy_text)
+
+    result = QuestionaryPrompter().integer("How many spokes?", default=3, minimum=2)
+    assert result == 5  # answer coerced str -> int
+    assert captured["default"] == "3"  # default coerced int -> str for the text prompt
+
+    validate = captured["validate"]
+    assert validate("abc") == "Enter an integer."
+    assert validate("1") == "Must be >= 2."
+    assert validate("2") is True
