@@ -176,7 +176,6 @@ wheels = [
 
 [[package]]
 name = "ignition-stack"
-version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "httpx" },
@@ -216,7 +215,7 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.7" },
     { name = "typer", specifier = ">=0.12" },
 ]
-provides-extras = ["poc", "dev"]
+provides-extras = ["dev", "poc"]
 
 [[package]]
 name = "iniconfig"

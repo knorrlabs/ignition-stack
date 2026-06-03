@@ -4,16 +4,17 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ignition-stack"
-version = "0.1.0"
+dynamic = ["version"]
 description = "CLI that generates ready-to-run Docker Compose stacks for Ignition 8.3 SCADA demos and SE engagements"
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "Apache-2.0" }
-authors = [{ name = "Ethan Knorr", email = "eknorr@inductiveautomation.com" }]
+license = { text = "MIT" }
+authors = [{ name = "Eric Knorr", email = "etknorr@gmail.com" }]
 keywords = ["ignition", "scada", "docker", "compose", "sales-engineering"]
 classifiers = [
   "Development Status :: 2 - Pre-Alpha",
   "Environment :: Console",
+  "License :: OSI Approved :: MIT License",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Topic :: System :: Installation/Setup",
@@ -49,6 +50,9 @@ dev = [
 
 [project.scripts]
 ignition-stack = "ignition_stack.cli:app"
+
+[tool.hatch.version]
+path = "ignition_stack/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["ignition_stack"]
