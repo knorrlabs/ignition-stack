@@ -9,7 +9,7 @@ A new version reaches users through PyPI: once published, `pipx install ignition
 
 ## Cutting a release
 
-1. Bump `version` in `pyproject.toml` (for example `0.1.0` to `0.2.0`) and merge that change to `main`. PyPI refuses to overwrite a version that already exists, so every release needs a fresh number.
+1. Bump `__version__` in `ignition_stack/__init__.py` (for example `0.1.0` to `0.2.0`) and merge that change to `main`. This is the single source of truth: `pyproject.toml` reads the package version from it via `[tool.hatch.version]`. PyPI refuses to overwrite a version that already exists, so every release needs a fresh number.
 2. Create a GitHub Release whose tag is the same version prefixed with `v`, for example `v0.2.0`, targeting `main`.
 3. Publishing it triggers `release.yml`. The workflow builds the wheel and sdist, checks the tag matches the built version, and publishes to PyPI.
 
