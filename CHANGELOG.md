@@ -4,6 +4,41 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Declarative config.** `init --dry-run` dumps the fully resolved
+  `ProjectConfig` to stdout (YAML by default, JSON via `--output-format`), and
+  `init -f/--from-file` rebuilds a project from a saved config file. A dumped
+  config round-trips byte-for-byte against the equivalent profile build, so a
+  stack is now fully described by a single portable, hand-editable artifact.
+- **Reshaped scaleout profile.** Scaleout now generates N frontend gateways plus
+  one all-standard backend by default, with Edge opt-in through `--edge-role`
+  rather than being the frontend default. The wizard and non-interactive `init`
+  flags expose three choices the profile previously hardcoded: frontend count,
+  the frontend/backend network split (tri-state, defaulting per profile), and
+  reverse-proxy selection. `switch-profile` recovers the frontend count and
+  network split so a reshape preserves the existing topology.
+
+### Changed
+
+- Every `init` now writes the lifecycle record unconditionally. The lifecycle
+  record and the declarative dump are the same artifact, produced through one
+  serialization path (`config/io.py`), so every generated project is reshapeable
+  and dumpable.
+
+### Removed
+
+- The `--keep-cli` flag and the one-shot / SE-demo lifecycle split. The record
+  that those modes gated is now always written, making the distinction
+  unnecessary.
+
+### Fixed
+
+- Configuration validation errors no longer surface the internal pydantic
+  `Value error,` prefix, so messages read cleanly.
+
 ## [0.1.1] - 2026-06-03
 
 Relicensing release. No functional changes to the CLI or generated stacks.
@@ -61,5 +96,6 @@ RUNNING with no manual UI steps.
 - Releases publish to PyPI automatically through GitHub Actions using Trusted
   Publishing (OIDC), with no stored API token.
 
+[Unreleased]: https://github.com/ia-eknorr/ignition-stack/compare/v0.1.1...HEAD
 [0.1.1]: https://github.com/ia-eknorr/ignition-stack/releases/tag/v0.1.1
 [0.1.0]: https://github.com/ia-eknorr/ignition-stack/releases/tag/v0.1.0
