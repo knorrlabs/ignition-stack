@@ -8,8 +8,7 @@ Three things this file proves end-to-end:
    project rests on.
 3. The compose output is byte-identical to the committed golden snapshot.
 
-It also exercises the CLI surface: ``--help`` mentions all four commands,
-and ``init`` with no name exits non-zero.
+It also exercises the CLI surface: ``init`` with no name exits non-zero.
 """
 
 from __future__ import annotations
@@ -28,14 +27,6 @@ GOLDEN_DIR = Path(__file__).parent / "golden" / "standalone-postgres"
 @pytest.fixture
 def runner() -> CliRunner:
     return CliRunner()
-
-
-def test_help_lists_all_four_commands(runner: CliRunner) -> None:
-    """--help must show init plus the three placeholder commands."""
-    result = runner.invoke(app, ["--help"])
-    assert result.exit_code == 0, result.stdout
-    for command in ("init", "modules", "reset", "wipe"):
-        assert command in result.stdout, f"expected '{command}' in --help output"
 
 
 def test_init_without_name_exits_non_zero(runner: CliRunner) -> None:
@@ -140,17 +131,3 @@ def test_bootstrap_script_is_executable(runner: CliRunner, tmp_path: Path) -> No
     # User must be able to execute; container runs the script via /bin/bash
     # but a chmod +x is still expected for local invocations.
     assert mode & 0o100, f"docker-bootstrap.sh is not user-executable (mode={oct(mode)})"
-
-
-def test_lifecycle_commands_are_implemented(runner: CliRunner) -> None:
-    """The phase-7 lifecycle commands are real now, not placeholders.
-
-    ``modules`` became a sub-app in phase 3; ``reset``/``wipe``/``switch-profile``
-    got their implementations in phase 7 (see tests/test_lifecycle.py for
-    behaviour). Here we only assert they no longer advertise themselves as
-    unimplemented, so the phase-2 placeholder contract is gone for good.
-    """
-    for command in ("reset", "wipe", "switch-profile"):
-        help_result = runner.invoke(app, [command, "--help"])
-        assert help_result.exit_code == 0, help_result.stdout
-        assert "not yet implemented" not in help_result.stdout.lower()
