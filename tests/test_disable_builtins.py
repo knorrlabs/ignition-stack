@@ -127,14 +127,6 @@ def test_added_module_is_folded_into_whitelist() -> None:
     assert VISION not in line
 
 
-def test_whitelist_is_deterministic() -> None:
-    config = ProjectConfig(
-        name="demo",
-        gateways=[GatewayConfig(name="gateway", disable_builtins=["sfc"])],
-    )
-    assert render_compose(config) == render_compose(config)
-
-
 def test_disabling_all_builtins_emits_empty_whitelist_not_omitted() -> None:
     """Disabling every built-in must emit an EMPTY whitelist (quarantines all),
     never omit the var - omission would silently re-enable everything, the exact

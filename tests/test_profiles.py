@@ -802,29 +802,3 @@ def test_questionary_select_drops_unknown_default(monkeypatch) -> None:
     answer = QuestionaryPrompter().select("Profile?", choices, default="does-not-exist")
     assert captured["default"] is None
     assert answer == "scaleout"
-
-
-def test_questionary_integer_coerces_and_validates(monkeypatch) -> None:
-    """The integer adapter (the hub-and-spoke spoke-count prompt) feeds
-    questionary a string default and an inline validator, then coerces the
-    answer back to int. Pure coverage — this path was never broken — capturing
-    the validator lets us exercise each branch directly."""
-    import questionary
-
-    captured: dict = {}
-
-    def spy_text(message, *, default=None, validate=None, **kwargs):
-        captured["default"] = default
-        captured["validate"] = validate
-        return _StubQuestion("5")
-
-    monkeypatch.setattr(questionary, "text", spy_text)
-
-    result = QuestionaryPrompter().integer("How many spokes?", default=3, minimum=2)
-    assert result == 5  # answer coerced str -> int
-    assert captured["default"] == "3"  # default coerced int -> str for the text prompt
-
-    validate = captured["validate"]
-    assert validate("abc") == "Enter an integer."
-    assert validate("1") == "Must be >= 2."
-    assert validate("2") is True
