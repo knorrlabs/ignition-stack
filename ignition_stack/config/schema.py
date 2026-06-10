@@ -61,24 +61,15 @@ class RedundancyConfig(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    mode: Literal["master", "backup"] = Field(
-        description="This node's redundancy role: 'master' or 'backup'."
-    )
+    mode: Literal["master", "backup"] = Field(description="This node's redundancy role: 'master' or 'backup'.")
     peer: str = Field(
-        description=(
-            "Service name of the other node in the pair. The backup points at "
-            "the master here (and over the Gateway Network); the master points "
-            "at its backup."
-        ),
+        description=("Service name of the other node in the pair. The backup points at " "the master here (and over the Gateway Network); the master points " "at its backup."),
     )
     gan_port: int = Field(
         default=8088,
         ge=1,
         le=65535,
-        description=(
-            "Gateway Network port the redundancy link rides. 8088 is plain "
-            "(non-SSL) and auto-approves; 8060 is SSL and needs a cert approval."
-        ),
+        description=("Gateway Network port the redundancy link rides. 8088 is plain " "(non-SSL) and auto-approves; 8060 is SSL and needs a cert approval."),
     )
     seed_redundancy_xml: bool = Field(
         default=True,
@@ -151,15 +142,26 @@ class GatewayConfig(BaseModel):
             "compose engine wires the backup's Gateway Network link to the master."
         ),
     )
+    gan_outgoing: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Service names of peer gateways this one opens an outgoing Gateway "
+            "Network connection to. Multi-gateway profiles set this to auto-form "
+            "the GAN with no UI approval (scaleout: each frontend -> backend; "
+            "hub-and-spoke: each spoke -> hub). The compose engine renders one "
+            "GATEWAY_NETWORK_<i>_HOST/PORT/ENABLESSL trio per entry on the plain, "
+            "non-SSL port 8088, and opens an Unrestricted incoming policy on every "
+            "GAN participant so the plain link auto-approves - the same proven "
+            "pattern the redundancy link rides. Plain transport is a demo-only "
+            "default; cross-host deployments should switch to SSL + approved certs."
+        ),
+    )
 
     @field_validator("name")
     @classmethod
     def _validate_name(cls, v: str) -> str:
         if not _NAME_RE.match(v):
-            raise ValueError(
-                "gateway name must start with a lowercase letter and contain only "
-                "lowercase letters, digits, hyphens, or underscores"
-            )
+            raise ValueError("gateway name must start with a lowercase letter and contain only " "lowercase letters, digits, hyphens, or underscores")
         return v
 
     @field_validator("ignition_edition")
@@ -277,10 +279,7 @@ class ReverseProxyConfig(BaseModel):
         if not stripped:
             raise ValueError("reverse-proxy path must not be empty")
         if stripped.startswith("/") or "\\" in stripped:
-            raise ValueError(
-                "reverse-proxy path must be a relative POSIX path "
-                "(no leading '/' and no backslashes)"
-            )
+            raise ValueError("reverse-proxy path must be a relative POSIX path " "(no leading '/' and no backslashes)")
         # Normalize "./foo" -> "foo" so the writer can join cleanly.
         return stripped.removeprefix("./")
 
@@ -332,10 +331,7 @@ class ProjectConfig(BaseModel):
     )
     mcp_dropin: bool = Field(
         default=False,
-        description=(
-            "True when the project should scaffold modules/dropin/ for the "
-            "EA-gated MCP module. Set by the mcp-n8n profile."
-        ),
+        description=("True when the project should scaffold modules/dropin/ for the " "EA-gated MCP module. Set by the mcp-n8n profile."),
     )
     profile: str | None = Field(
         default=None,
@@ -375,10 +371,7 @@ class ProjectConfig(BaseModel):
     @classmethod
     def _validate_name(cls, v: str) -> str:
         if not _NAME_RE.match(v):
-            raise ValueError(
-                "name must start with a lowercase letter and contain only "
-                "lowercase letters, digits, hyphens, or underscores"
-            )
+            raise ValueError("name must start with a lowercase letter and contain only " "lowercase letters, digits, hyphens, or underscores")
         return v
 
     @model_validator(mode="after")
@@ -419,4 +412,30 @@ class ProjectConfig(BaseModel):
                 f"'{gw.name}' ({gw.ignition_edition}) mixes editions; Ignition "
                 "redundancy is Edge-to-Edge only, so both nodes must share an edition"
             )
+        return self
+
+    @model_validator(mode="after")
+    def _gan_aggregation_target_is_standard(self) -> ProjectConfig:
+        """A Gateway Network aggregation link must terminate on a standard gateway.
+
+        Edge is a leaf edition: gateways aggregate *into* a full (standard)
+        gateway, never into an Edge one. So a ``gan_outgoing`` link may be
+        ``edge -> standard`` or ``standard -> standard``, but it may never target
+        an Edge node - this rejects both ``edge -> edge`` and ``standard -> edge``
+        (the latter is what ``scaleout --edge-role backend`` would produce).
+        Redundancy is unaffected: its Edge-to-Edge pair link rides
+        ``redundancy.peer``, not ``gan_outgoing``, and stays valid.
+        """
+        by_name = {gw.name: gw for gw in self.gateways}
+        for gw in self.gateways:
+            for peer in gw.gan_outgoing:
+                target = by_name.get(peer)
+                if target is None or target.ignition_edition != "edge":
+                    continue
+                raise ValueError(
+                    f"gateway '{gw.name}' opens a Gateway Network link to "
+                    f"'{target.name}', which runs the Edge edition; aggregate into "
+                    "a standard gateway instead (Edge is a leaf edition). "
+                    "Edge-to-Edge is supported only for redundancy pairs."
+                )
         return self
