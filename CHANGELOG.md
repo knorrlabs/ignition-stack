@@ -17,7 +17,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Plain transport stays a demo-only default; cross-host or production
   deployments should switch to SSL on port 8060 with approved certificates.
   Verified end-to-end on 8.3.6: Edge spokes and standard frontends both reach
-  `Running` against their hub/backend on first boot with zero clicks.
+  `Running` against their hub/backend on first boot with zero clicks. A config
+  that aggregates into an Edge gateway is rejected up front (an aggregation link
+  may only be `edge → standard` or `standard → standard`, since Edge is a leaf
+  edition) - so `scaleout --edge-role backend` now errors with that guidance.
+  Edge-to-Edge redundancy pairs are unaffected (a separate mechanism).
 - **Update notifier.** A real command on an interactive terminal prints a
   one-line notice when a newer release is on PyPI, with the upgrade command
   tailored to the detected install method (pipx, `uv tool`, or pip). The check

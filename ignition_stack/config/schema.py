@@ -413,3 +413,29 @@ class ProjectConfig(BaseModel):
                 "redundancy is Edge-to-Edge only, so both nodes must share an edition"
             )
         return self
+
+    @model_validator(mode="after")
+    def _gan_aggregation_target_is_standard(self) -> ProjectConfig:
+        """A Gateway Network aggregation link must terminate on a standard gateway.
+
+        Edge is a leaf edition: gateways aggregate *into* a full (standard)
+        gateway, never into an Edge one. So a ``gan_outgoing`` link may be
+        ``edge -> standard`` or ``standard -> standard``, but it may never target
+        an Edge node - this rejects both ``edge -> edge`` and ``standard -> edge``
+        (the latter is what ``scaleout --edge-role backend`` would produce).
+        Redundancy is unaffected: its Edge-to-Edge pair link rides
+        ``redundancy.peer``, not ``gan_outgoing``, and stays valid.
+        """
+        by_name = {gw.name: gw for gw in self.gateways}
+        for gw in self.gateways:
+            for peer in gw.gan_outgoing:
+                target = by_name.get(peer)
+                if target is None or target.ignition_edition != "edge":
+                    continue
+                raise ValueError(
+                    f"gateway '{gw.name}' opens a Gateway Network link to "
+                    f"'{target.name}', which runs the Edge edition; aggregate into "
+                    "a standard gateway instead (Edge is a leaf edition). "
+                    "Edge-to-Edge is supported only for redundancy pairs."
+                )
+        return self

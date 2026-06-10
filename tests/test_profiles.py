@@ -32,7 +32,7 @@ from ignition_stack.catalog.loader import load_catalog
 from ignition_stack.cli import app
 from ignition_stack.compose.engine import render_compose
 from ignition_stack.compose.writer import write_project
-from ignition_stack.config import ReverseProxyConfig
+from ignition_stack.config import GatewayConfig, ProjectConfig, ReverseProxyConfig
 from ignition_stack.profiles import (
     ProfileError,
     ProfileOptions,
@@ -247,6 +247,37 @@ def test_hub_and_spoke_emits_gateway_network_post_setup(tmp_path: Path) -> None:
     assert "hub" in post_setup
     assert "spoke-1" in post_setup and "spoke-2" in post_setup
     assert "8088" in post_setup
+
+
+def test_edge_aggregation_target_rejected_edge_to_edge() -> None:
+    """A hand-authored config that aggregates one Edge gateway into another is
+    rejected: Edge is a leaf edition, so a GAN aggregation link can't target it."""
+    with pytest.raises(ValueError, match="Edge edition; aggregate into a standard"):
+        ProjectConfig(
+            name="demo",
+            database=None,
+            gateways=[
+                GatewayConfig(name="leaf", ignition_edition="edge", gan_outgoing=["central"]),
+                GatewayConfig(name="central", ignition_edition="edge"),
+            ],
+        )
+
+
+def test_edge_aggregation_target_rejected_standard_to_edge() -> None:
+    """`scaleout --edge-role backend` makes the aggregation target (backend) Edge,
+    which is the same backwards shape (standard frontends into an Edge backend) and
+    is rejected with the same guidance."""
+    with pytest.raises(ValueError, match="Edge edition; aggregate into a standard"):
+        build_profile("scaleout", "demo", ProfileOptions(edge_role="backend"))
+
+
+def test_edge_to_standard_aggregation_allowed() -> None:
+    """The normal leaf->aggregator shapes stay valid: edge spokes -> standard hub
+    and standard frontend -> standard backend both build without error."""
+    # edge -> standard (hub-and-spoke default: Edge spokes, standard hub)
+    build_profile("hub-and-spoke", "demo", ProfileOptions(spokes=2))
+    # standard -> standard (scaleout default)
+    build_profile("scaleout", "demo", ProfileOptions())
 
 
 def test_scaleout_via_cli_writes_project(tmp_path: Path) -> None:
