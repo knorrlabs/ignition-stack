@@ -201,15 +201,6 @@ def test_cirrus_entries_present_and_identified() -> None:
         assert entry.module_identifier.startswith("com.cirruslink.mqtt.")
 
 
-@pytest.mark.xfail(
-    reason=(
-        "Cirrus .modl artifacts are not downloadable in this environment - the "
-        "catalog download_url returns HTTP 404 and the IA file host is gated, so "
-        "the sha256 cannot be pinned here. Pin once the artifacts are obtained "
-        "(a Phase-4 prerequisite); this test flips to xpass when they are."
-    ),
-    strict=False,
-)
 def test_cirrus_entries_are_pinned() -> None:
     text = (_REPO_ROOT / "modules.yaml").read_text(encoding="utf-8")
     # Isolate each Cirrus entry's block and assert no UNPINNED sha remains.
