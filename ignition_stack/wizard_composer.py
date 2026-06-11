@@ -67,7 +67,7 @@ _ACTIONS: list[tuple[str, str]] = [
     ("edition", "Set a gateway's edition (standard / edge)"),
     ("iiot", "Add or remove IIoT (MQTT/Sparkplug)"),
     ("rename", "Rename an instance"),
-    ("done", "Done - review and generate"),
+    ("done", "Done — review and generate"),
 ]
 
 
@@ -309,7 +309,7 @@ def _action_iiot(prompter: Prompter, working: ProjectConfig) -> ProjectConfig:
     catalog = load_all_services()
     brokers = [inst for inst in working.service_instances if catalog[inst.service].kind == "mqtt-broker"]
     if brokers:
-        if not prompter.confirm(f"Unwire the MQTT pipeline (broker '{brokers[0].id}')?", default=False):
+        if not prompter.confirm(f"Remove the IIoT pipeline (broker '{brokers[0].id}')?", default=False):
             return working
         return _try_mutate(working, lambda c: _unwire_iiot(c, catalog))
     broker = prompter.select("MQTT broker?", mqtt_broker_choices(catalog), default="chariot")
