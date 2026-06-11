@@ -334,9 +334,22 @@ def init(
     console.print("Next steps:")
     console.print(f"  cd {target}")
     console.print("  docker compose up -d")
-    console.print(f"  open http://localhost:{config.gateways[0].http_port}  (admin / {config.admin_password})")
+    console.print(f"  open {_gateway_open_url(config)}  (admin / {config.admin_password})")
     console.print()
     console.print(f"  config recorded in {LIFECYCLE_DIR}/ - run `ignition-stack reset` to " "regenerate or `switch-profile <name>` to reshape this stack.")
+
+
+def _gateway_open_url(config: ProjectConfig) -> str:
+    """The URL the first gateway is reachable at after `compose up`.
+
+    A proxied stack publishes no host port - the proxy's Host rule is the
+    front door - so the localhost:<port> form only applies to host-port mode.
+    """
+    if config.reverse_proxy is not None:
+        from ignition_stack.compose.engine import proxy_url
+
+        return proxy_url(config, config.gateways[0])
+    return f"http://localhost:{config.gateways[0].http_port}"
 
 
 def _validate_init_flags(*, profile: str | None, from_file: Path | None, dry_run: bool, fmt: str | None) -> None:
