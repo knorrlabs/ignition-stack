@@ -2,7 +2,7 @@
 
 Typer re-invokes the program on every ``<TAB>``, so these callbacks must be
 cheap and must never raise - an exception here would surface as noise on the
-user's shell line. They read only the in-memory profile registry and the
+user's shell line. They read only the in-memory architecture registry and the
 local bundled ``modules.yaml``; they never touch the network.
 
 Each callback takes the partial value the user has typed and returns the
@@ -12,20 +12,20 @@ two-column completion menu that zsh and fish render.
 
 from __future__ import annotations
 
-from ignition_stack.profiles import list_profiles
+from ignition_stack.architectures import list_architectures
 
 
-def complete_profile(incomplete: str) -> list[tuple[str, str]]:
-    """Profile slugs (with their one-line summary) matching the typed prefix."""
-    return [(p.slug, p.summary) for p in list_profiles() if p.slug.startswith(incomplete)]
+def complete_architecture(incomplete: str) -> list[tuple[str, str]]:
+    """Architecture slugs (with their one-line summary) matching the typed prefix."""
+    return [(a.slug, a.summary) for a in list_architectures() if a.slug.startswith(incomplete)]
 
 
-# The Ignition Edge role names the profiles recognise. These are the string
-# literals the profile builders match ``edge_role`` against (see
-# profiles/*.py); duplicated here as the completion vocabulary because there
-# is no single registry of role names. 'none' is the sentinel that disables a
-# profile's default Edge role.
-EDGE_ROLE_VALUES = ("frontend", "backend", "hub", "spoke", "gateway", "standalone", "none")
+# The Ignition Edge role names the architectures recognise. These are the string
+# literals the architecture builders match ``edge_role`` against (see
+# architectures/*.py); duplicated here as the completion vocabulary because
+# there is no single registry of role names. 'none' is the sentinel that
+# disables an architecture's default Edge role.
+EDGE_ROLE_VALUES = ("frontend", "backend", "hub", "spoke", "gateway", "none")
 
 
 def complete_edge_role(incomplete: str) -> list[str]:
@@ -62,9 +62,9 @@ def complete_iiot_broker(incomplete: str) -> list[tuple[str, str]]:
 
 
 # Roles `init --redundant` can pair. Only the singleton workhorse roles are
-# eligible (a scaleout 'backend', a hub-and-spoke 'hub', a standalone
-# 'gateway'); replicated 'frontend'/'spoke' tiers are rejected by the profile
-# builder, so they are intentionally absent here.
+# eligible (a scale-out 'backend', a hub-and-spoke 'hub', a basic 'gateway');
+# replicated 'frontend'/'spoke' tiers are rejected by the architecture builder,
+# so they are intentionally absent here.
 REDUNDANT_ROLE_VALUES = ("backend", "hub", "gateway")
 
 

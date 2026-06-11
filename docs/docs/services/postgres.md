@@ -5,7 +5,7 @@ description: PostgreSQL, the default Ignition historian and SQL store, with a pr
 
 # Postgres
 
-PostgreSQL is the default database for every profile and the recommended pick in the wizard. It backs the Ignition historian and any SQL-driven demo, and it is the one service that arrives with its gateway connection already wired up.
+PostgreSQL is the default database for every architecture and the recommended pick in the wizard. It backs the Ignition historian and any SQL-driven demo, and it is the one service that arrives with its gateway connection already wired up.
 
 | | |
 | --- | --- |
@@ -17,7 +17,7 @@ PostgreSQL is the default database for every profile and the recommended pick in
 
 ## How it reaches a stack
 
-The wizard offers Postgres as the default answer to its database prompt, and the non-interactive `ignition-stack init --profile <name>` path uses it unless you pick another database. The dependency resolver also adds Postgres automatically when another service needs a SQL database (for example [Keycloak](./keycloak.md)).
+The wizard offers Postgres as the default answer to its database prompt, and the non-interactive `ignition-stack init --arch <slug>` path uses it unless you pick another database. The dependency resolver also adds Postgres automatically when another service needs a SQL database (for example [Keycloak](./keycloak.md)).
 
 Credentials live in the shared database section of the generated `.env` (`DB_USER`, `DB_PASSWORD`, `DB_HOST`), so every database kind speaks one credential vocabulary. The defaults are `ignition` / `ignition`.
 

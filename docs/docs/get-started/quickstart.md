@@ -9,10 +9,10 @@ This walks you from an installed CLI to a running gateway with a `VALID` databas
 
 ## Generate and run a stack
 
-The fastest path is the default [standalone profile](../profiles/standalone.md): one gateway plus a pre-seeded Postgres.
+The fastest path is the default [basic architecture](../architectures/basic.md): one gateway plus a pre-seeded Postgres.
 
 ```sh
-ignition-stack init demo --profile standalone
+ignition-stack init demo --arch basic
 cd demo
 docker compose up -d
 ```
@@ -21,13 +21,13 @@ The gateway reaches `RUNNING` with no UI prompts. Open `http://localhost:9088` a
 
 ## Use the wizard instead
 
-Run `init` without `--profile` to walk the interactive wizard, which prompts for the profile, database, edition, and optional reverse proxy:
+Run `init` without `--arch` to walk the interactive wizard, which prompts for the architecture, database, edition, and optional reverse proxy:
 
 ```sh
 ignition-stack init demo
 ```
 
-The wizard is the discoverable path; `--profile` (and the other flags in the [CLI reference](../reference/cli.md)) is the scriptable one. Both produce the same kind of project.
+The wizard is the discoverable path; `--arch` (and the other flags in the [CLI reference](../reference/cli.md)) is the scriptable one. Both produce the same kind of project.
 
 ## What gets generated
 
@@ -43,7 +43,7 @@ demo/
     ignition/            # the gateway's file-config resource tree
 ```
 
-Everything in the project is meant to be read and tweaked by hand. Nothing is hidden behind the tool, and the standalone stack defers no manual steps, so its `POST-SETUP.md` simply says none are required. See [How generation works](../concepts/how-generation-works.md) for the pipeline that produces this tree.
+Everything in the project is meant to be read and tweaked by hand. Nothing is hidden behind the tool, and the basic stack defers no manual steps, so its `POST-SETUP.md` simply says none are required. See [How generation works](../concepts/how-generation-works.md) for the pipeline that produces this tree.
 
 ## Tear it down
 
@@ -57,6 +57,6 @@ Both remove only this project's containers and volumes. See [Tear down a stack](
 
 ## Where to go next
 
-- [Architecture profiles](../profiles/index.md) decide the shape of the stack.
+- [Architectures](../architectures/index.md) decide the shape of the stack.
 - [Services](../services/index.md) are the databases, brokers, and other containers you can add.
 - [The configuration record](../concepts/configuration-record.md) explains how every stack records itself for reset, reshape, and the declarative dump/build loop.

@@ -328,7 +328,7 @@ def _ignition_context(ctx: dict[str, object], config: ProjectConfig, multi: bool
     # path:
     #  - Redundancy: the backup points an outgoing connection at its master and
     #    must NOT be renamed via -n (it adopts the master's system name on sync).
-    #  - Multi-gateway profiles: each gateway names its peers in gan_outgoing
+    #  - Multi-gateway architectures: each gateway names its peers in gan_outgoing
     #    (scaleout frontend -> backend, hub-and-spoke spoke -> hub).
     # Every GAN participant carries the full open incoming block. Mirroring the
     # spike's BOTH-ends shape keeps requireSSL=false on the *initiator* too -
@@ -406,7 +406,7 @@ def _accept_module_identifiers(gw: GatewayConfig, config: ProjectConfig, catalog
     the mqtt-transmission license its bootstrap had copied in). Hence: the
     first-seen-ordered union of every gateway's module identifiers, emitted
     only for gateways that mount the cache at all. Stacks where every gateway
-    lists the same modules (all pre-IIoT profiles) get the identical string as
+    lists the same modules (all pre-IIoT architectures) get the identical string as
     before, keeping those goldens byte-stable.
     """
     if not gw.modules:

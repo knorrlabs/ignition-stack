@@ -1,6 +1,6 @@
 """Regenerate a project in place from its recorded config.
 
-``reset`` and ``switch-profile`` both clear the previously-generated tree and
+``reset`` and ``switch-arch`` both clear the previously-generated tree and
 re-run the writer. The lifecycle record (``.ignition-stack/``) and the modules
 cache are preserved across the rewrite: the record because it is the input to
 the regeneration, the cache because re-downloading pinned ``.modl`` files on

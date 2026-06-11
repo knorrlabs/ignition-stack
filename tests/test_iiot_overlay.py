@@ -4,7 +4,7 @@
 Transmission/Engine modules across a stack's gateways **by role**, using the
 module slugs the broker manifest's ``wires.mqtt`` block names. These tests pin:
 
-- the role mapping for each profile shape (hub-and-spoke, scaleout, standalone);
+- the role mapping for each architecture shape (hub-and-spoke, scale-out, basic);
 - the broker default (``chariot``) and an explicit override (``emqx``);
 - the validation errors (unknown slug, non-broker slug, broker without wires);
 - idempotency of the overlay and of ``resolve()`` on an overlaid config;
@@ -25,12 +25,12 @@ from pathlib import Path
 
 import pytest
 
+from ignition_stack.architectures import ArchOptions, apply_iiot, build_architecture
 from ignition_stack.catalog.loader import load_catalog
 from ignition_stack.catalog.schema import SHA256_UNPINNED, ModuleEntry
 from ignition_stack.compose.engine import render_compose
 from ignition_stack.compose.writer import write_project
 from ignition_stack.config import ProjectConfig
-from ignition_stack.profiles import ProfileOptions, apply_iiot, build_profile
 from ignition_stack.services.loader import load_all_services
 from ignition_stack.services.resolver import resolve
 
@@ -48,12 +48,12 @@ def _gw(config: ProjectConfig, name: str):
 
 
 # --------------------------------------------------------------------------- #
-# Role mapping per profile shape
+# Role mapping per architecture shape
 # --------------------------------------------------------------------------- #
 
 
 def test_hub_and_spoke_iiot_transmits_on_spokes_engine_on_hub() -> None:
-    config = build_profile("hub-and-spoke", "hs", ProfileOptions(iiot=True, spokes=3))
+    config = build_architecture("hub-and-spoke", "hs", ArchOptions(iiot=True, spokes=3))
 
     assert any(inst.id == "chariot" for inst in config.service_instances)
     hub = _gw(config, "hub")
@@ -67,8 +67,8 @@ def test_hub_and_spoke_iiot_transmits_on_spokes_engine_on_hub() -> None:
         assert spoke.ignition_edition == "edge"
 
 
-def test_scaleout_iiot_transmits_on_frontends_engine_on_backend() -> None:
-    config = build_profile("scaleout", "so", ProfileOptions(iiot=True, frontends=2))
+def test_scale_out_iiot_transmits_on_frontends_engine_on_backend() -> None:
+    config = build_architecture("scale-out", "so", ArchOptions(iiot=True, frontends=2))
 
     backend = _gw(config, "backend")
     assert ("chariot", "mqtt-engine") in _attachments(backend)
@@ -79,9 +79,9 @@ def test_scaleout_iiot_transmits_on_frontends_engine_on_backend() -> None:
         assert "mqtt-transmission" in front.modules
 
 
-def test_standalone_iiot_runs_both_roles_on_the_one_gateway() -> None:
+def test_basic_iiot_runs_both_roles_on_the_one_gateway() -> None:
     """No transmission/engine roles in this topology -> the loop closes locally."""
-    config = build_profile("standalone", "solo", ProfileOptions(iiot=True))
+    config = build_architecture("basic", "solo", ArchOptions(iiot=True))
 
     gw = _gw(config, "gateway")
     assert _attachments(gw) == {
@@ -97,12 +97,12 @@ def test_standalone_iiot_runs_both_roles_on_the_one_gateway() -> None:
 
 
 def test_iiot_defaults_to_chariot() -> None:
-    config = build_profile("standalone", "d", ProfileOptions(iiot=True))
+    config = build_architecture("basic", "d", ArchOptions(iiot=True))
     assert [i.id for i in config.service_instances if i.service == "chariot"] == ["chariot"]
 
 
 def test_iiot_broker_explicit_emqx_is_honored() -> None:
-    config = build_profile("standalone", "d", ProfileOptions(iiot=True, iiot_broker="emqx"))
+    config = build_architecture("basic", "d", ArchOptions(iiot=True, iiot_broker="emqx"))
     assert any(i.id == "emqx" and i.service == "emqx" for i in config.service_instances)
     assert not any(i.service == "chariot" for i in config.service_instances)
     # The module slugs still come from emqx's own wires.mqtt block.
@@ -111,7 +111,7 @@ def test_iiot_broker_explicit_emqx_is_honored() -> None:
 
 
 def test_iiot_none_broker_leaves_config_untouched() -> None:
-    config = build_profile("standalone", "d", ProfileOptions(iiot=False))
+    config = build_architecture("basic", "d", ArchOptions(iiot=False))
     assert config.service_instances == []
     assert _gw(config, "gateway").modules == []
     # apply_iiot with an explicit None is a no-op too.
@@ -150,14 +150,14 @@ def test_broker_without_wires_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_apply_iiot_is_idempotent() -> None:
-    config = build_profile("hub-and-spoke", "hs", ProfileOptions(iiot=True, spokes=2))
+    config = build_architecture("hub-and-spoke", "hs", ArchOptions(iiot=True, spokes=2))
     before = config.model_dump()
     apply_iiot(config, "chariot")
     assert config.model_dump() == before
 
 
 def test_resolve_is_idempotent_on_an_iiot_config() -> None:
-    config = build_profile("scaleout", "so", ProfileOptions(iiot=True, frontends=2))
+    config = build_architecture("scale-out", "so", ArchOptions(iiot=True, frontends=2))
     once = resolve(config)
     twice = resolve(once)
     assert once.model_dump() == twice.model_dump()
@@ -169,7 +169,7 @@ def test_resolve_is_idempotent_on_an_iiot_config() -> None:
 
 
 def test_redundant_hub_engine_module_on_master_and_backup() -> None:
-    config = build_profile("hub-and-spoke", "redhub", ProfileOptions(iiot=True, redundant_role="hub", spokes=2))
+    config = build_architecture("hub-and-spoke", "redhub", ArchOptions(iiot=True, redundant_role="hub", spokes=2))
     resolved = resolve(config)
     for name in ("hub", "hub-backup"):
         gw = _gw(resolved, name)
@@ -263,7 +263,7 @@ def _check_or_update_golden(rel_path: str, actual: str) -> None:
 
 
 def test_hub_and_spoke_iiot_compose_golden() -> None:
-    config = resolve(build_profile("hub-and-spoke", "hsiiot", ProfileOptions(iiot=True, spokes=2)))
+    config = resolve(build_architecture("hub-and-spoke", "hsiiot", ArchOptions(iiot=True, spokes=2)))
     rendered = render_compose(config, catalog=load_catalog())
     _check_or_update_golden("combos/hub-and-spoke-iiot-chariot/docker-compose.yaml", rendered)
 
@@ -283,7 +283,7 @@ def _gw_resources(root: Path, gw_dir: str, plugin: str) -> Path:
 def test_role_scoped_seeds_land_only_on_the_matching_role(tmp_path: Path) -> None:
     """Transmission seeds land only on transmission-attached gateways, Engine
     seeds only on engine-attached ones - never crossed."""
-    config = resolve(build_profile("hub-and-spoke", "plant", ProfileOptions(iiot=True, spokes=2)))
+    config = resolve(build_architecture("hub-and-spoke", "plant", ArchOptions(iiot=True, spokes=2)))
     root = tmp_path / "plant"
     write_project(config, root)
 
@@ -296,9 +296,9 @@ def test_role_scoped_seeds_land_only_on_the_matching_role(tmp_path: Path) -> Non
         assert not _gw_resources(root, spoke, _EN_ID).exists()
 
 
-def test_standalone_self_loop_gets_both_role_trees(tmp_path: Path) -> None:
+def test_basic_self_loop_gets_both_role_trees(tmp_path: Path) -> None:
     """A single-gateway shape carries both roles, so both trees land on it."""
-    config = resolve(build_profile("standalone", "solo", ProfileOptions(iiot=True)))
+    config = resolve(build_architecture("basic", "solo", ArchOptions(iiot=True)))
     root = tmp_path / "solo"
     write_project(config, root)
     assert _gw_resources(root, "ignition", _TX_ID).is_dir()
@@ -307,7 +307,7 @@ def test_standalone_self_loop_gets_both_role_trees(tmp_path: Path) -> None:
 
 def test_seed_identity_is_templated_from_project_and_gateway(tmp_path: Path) -> None:
     """Group ID = project, Edge Node ID = gateway (dir + field), URL from wires."""
-    config = resolve(build_profile("hub-and-spoke", "plant", ProfileOptions(iiot=True, spokes=2)))
+    config = resolve(build_architecture("hub-and-spoke", "plant", ArchOptions(iiot=True, spokes=2)))
     root = tmp_path / "plant"
     write_project(config, root)
 
@@ -330,7 +330,7 @@ def test_seed_identity_is_templated_from_project_and_gateway(tmp_path: Path) -> 
 
 def test_chariot_seed_carries_jwe_credentials(tmp_path: Path) -> None:
     """chariot needs MQTT auth (admin/changeme), so the seed carries the JWE blob."""
-    config = resolve(build_profile("standalone", "solo", ProfileOptions(iiot=True)))
+    config = resolve(build_architecture("basic", "solo", ArchOptions(iiot=True)))
     root = tmp_path / "solo"
     write_project(config, root)
     server = json.loads((_gw_resources(root, "ignition", _TX_ID) / "server" / "Chariot SCADA" / "config.json").read_text())
@@ -343,7 +343,7 @@ def test_anonymous_broker_seed_strips_credentials(tmp_path: Path) -> None:
     """emqx/hivemq allow anonymous MQTT, so their seeds omit username/password
     while still carrying the broker URL (config-shaped, not live-verified)."""
     for broker in ("emqx", "hivemq"):
-        config = resolve(build_profile("standalone", broker, ProfileOptions(iiot=True, iiot_broker=broker)))
+        config = resolve(build_architecture("basic", broker, ArchOptions(iiot=True, iiot_broker=broker)))
         root = tmp_path / broker
         write_project(config, root)
         server = json.loads((_gw_resources(root, "ignition", _TX_ID) / "server" / "Chariot SCADA" / "config.json").read_text())
@@ -356,7 +356,7 @@ def test_non_j2_seed_files_are_byte_identical_to_source(tmp_path: Path) -> None:
     """A non-.j2 seed (the general/config.json) is copied unchanged from the tree."""
     from ignition_stack.compose.writer import _iiot_root
 
-    config = resolve(build_profile("standalone", "solo", ProfileOptions(iiot=True)))
+    config = resolve(build_architecture("basic", "solo", ArchOptions(iiot=True)))
     root = tmp_path / "solo"
     write_project(config, root)
     src = _iiot_root() / "gateway-resources-mqtt-transmission" / "config" / "resources" / "core" / _TX_ID / "general" / "config.json"
@@ -374,7 +374,7 @@ def test_no_iiot_means_no_cirrus_seeds(tmp_path: Path) -> None:
 
 def test_chariot_compose_gains_the_trial_init(tmp_path: Path) -> None:
     """The chariot fragment ships a one-shot trial init that starts the license."""
-    config = resolve(build_profile("standalone", "solo", ProfileOptions(iiot=True)))
+    config = resolve(build_architecture("basic", "solo", ArchOptions(iiot=True)))
     rendered = render_compose(config, catalog=load_catalog())
     assert "chariot-trial:" in rendered
     assert "/chariot-trial.sh" in rendered

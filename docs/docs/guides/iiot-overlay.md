@@ -7,9 +7,9 @@ description: Add a Sparkplug MQTT pipeline to any topology with --iiot. The over
 
 The `--iiot` overlay adds a Sparkplug B MQTT pipeline on top of any topology. It adds an MQTT broker to the stack and installs the Cirrus Link **Transmission** and **Engine** modules on the gateways by role:
 
-- **Edge-side gateways** (spokes in hub-and-spoke, frontends in scaleout) get Transmission — they publish Sparkplug messages to the broker.
+- **Edge-side gateways** (spokes in hub-and-spoke, frontends in scale-out) get Transmission — they publish Sparkplug messages to the broker.
 - **Central gateways** (hub, backend) get Engine — they subscribe and aggregate.
-- **Single-gateway stacks** (standalone) get both — a self-contained publish/subscribe loop for local development.
+- **Single-gateway stacks** (basic) get both — a self-contained publish/subscribe loop for local development.
 
 The connection seeds are written at generation time: each gateway boots with its Sparkplug identity already set and its broker connection configured, so the pipeline forms with no UI clicks.
 
@@ -18,13 +18,13 @@ The connection seeds are written at generation time: each gateway boots with its
 Pass `--iiot` to `init` to add the overlay with the default broker (`chariot`):
 
 ```sh
-ignition-stack init demo --profile hub-and-spoke --iiot
+ignition-stack init demo --arch hub-and-spoke --iiot
 ```
 
 To choose a different broker, pass `--iiot-broker <slug>` (which implies `--iiot`):
 
 ```sh
-ignition-stack init demo --profile hub-and-spoke --iiot-broker emqx
+ignition-stack init demo --arch hub-and-spoke --iiot-broker emqx
 ```
 
 The broker slug must be a catalog `mqtt-broker` kind. The available options are:
@@ -118,8 +118,8 @@ The attachment role drives which Cirrus module the resolver installs on that gat
 
 Use `init --dry-run --iiot` to dump the resolved config and inspect the full shape before building.
 
-## Reshaping with switch-profile
+## Reshaping with switch-arch
 
-`switch-profile` carries the IIoT wiring across a reshape. If the stack had a broker with Transmission/Engine wiring, the overlay re-runs on the new topology: spokes/frontends get Transmission, the hub/backend gets Engine. A standalone IIoT stack reshaped to hub-and-spoke moves Transmission onto the spokes and Engine onto the hub automatically.
+`switch-arch` carries the IIoT wiring across a reshape. If the stack had a broker with Transmission/Engine wiring, the overlay re-runs on the new topology: spokes/frontends get Transmission, the hub/backend gets Engine. A basic IIoT stack reshaped to hub-and-spoke moves Transmission onto the spokes and Engine onto the hub automatically.
 
-See [Reset, rebuild, and switch profiles](./reset-and-reshape.md) for the full reshape flow.
+See [Reset, rebuild, and switch architectures](./reset-and-reshape.md) for the full reshape flow.

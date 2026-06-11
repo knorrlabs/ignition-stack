@@ -20,7 +20,7 @@ docker compose -p demo down -v --remove-orphans
 - `-p demo` scopes every operation to the `demo` project label.
 - `down` stops and removes the project's containers and its default network.
 - `-v` removes the named volumes declared in the project's compose file.
-- `--remove-orphans` clears containers that were once in the compose file but have since been removed from it (for example, a gateway dropped by a `switch-profile`).
+- `--remove-orphans` clears containers that were once in the compose file but have since been removed from it (for example, a gateway dropped by a `switch-arch`).
 
 Nothing here is host-wide. There is no `docker system prune`, no `docker volume prune`, and no `docker volume rm` against an unscoped list - a different stack's volumes are invisible to a `-p`-pinned `down`.
 

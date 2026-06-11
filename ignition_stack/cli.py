@@ -5,9 +5,9 @@ Phase 3 wires the real ``modules`` sub-app (catalog list/validate/download);
 ``reset`` and ``wipe`` remain visible placeholders so the command surface
 is stable from day one, with later phases filling them in.
 
-Phase 6 widens ``init`` with ``--profile``, ``--spokes``, ``--force``, and
-``--edge-role`` for the four architecture profiles, and falls into the
-interactive wizard when no profile is named.
+Phase 6 widens ``init`` with ``--arch``, ``--spokes``, ``--force``, and
+``--edge-role`` for the system architectures, and falls into the interactive
+wizard when no architecture is named.
 """
 
 from __future__ import annotations
@@ -20,13 +20,27 @@ import typer
 from rich.console import Console
 
 from ignition_stack import __version__
+from ignition_stack.architectures import (
+    ArchitectureError,
+    ArchOptions,
+    build_architecture,
+    can_host_redundant_role,
+    get_architecture,
+    list_architectures,
+)
+from ignition_stack.architectures.carry import (
+    carry_registry,
+    database_carried_by_kind,
+    detect_iiot_broker,
+    is_default_representable,
+)
 from ignition_stack.commands.modules import modules_app
 from ignition_stack.completion import (
+    complete_architecture,
     complete_disable_builtin,
     complete_edge_role,
     complete_iiot_broker,
     complete_output_format,
-    complete_profile,
     complete_redundant_role,
     complete_reverse_proxy,
 )
@@ -48,20 +62,6 @@ from ignition_stack.lifecycle import (
     wipe_command,
 )
 from ignition_stack.lifecycle.regenerate import regenerate
-from ignition_stack.profiles import (
-    ProfileError,
-    ProfileOptions,
-    build_profile,
-    can_host_redundant_role,
-    get_profile,
-    list_profiles,
-)
-from ignition_stack.profiles.carry import (
-    carry_registry,
-    database_carried_by_kind,
-    detect_iiot_broker,
-    is_default_representable,
-)
 from ignition_stack.services.loader import load_all_services
 from ignition_stack.services.resolver import resolve
 from ignition_stack.update_check import (
@@ -124,11 +124,11 @@ def _notify_update_available() -> None:
     )
 
 
-def _profile_help() -> str:
-    """Format the available profiles for ``--profile`` help text."""
-    lines = ["Architecture profile to materialize (skips the wizard):"]
-    for p in list_profiles():
-        lines.append(f"  - {p.slug}: {p.summary}")
+def _arch_help() -> str:
+    """Format the available architectures for ``--arch`` help text."""
+    lines = ["System architecture to materialize (skips the wizard):"]
+    for a in list_architectures():
+        lines.append(f"  - {a.slug}: {a.summary}")
     return "\n".join(lines)
 
 
@@ -138,29 +138,29 @@ def init(
         ...,
         help="Project name. Becomes the directory, the compose project, and the gateway name.",
     ),
-    profile: str | None = typer.Option(
+    arch: str | None = typer.Option(
         None,
-        "--profile",
-        "-p",
-        help=_profile_help(),
-        autocompletion=complete_profile,
+        "--arch",
+        "-a",
+        help=_arch_help(),
+        autocompletion=complete_architecture,
     ),
     spokes: int = typer.Option(
         3,
         "--spokes",
-        help="Spoke gateway count for the hub-and-spoke profile (ignored otherwise).",
+        help="Spoke gateway count for the hub-and-spoke architecture (ignored otherwise).",
         min=0,
     ),
     frontends: int = typer.Option(
         1,
         "--frontends",
-        help="Frontend gateway count for the scaleout profile (ignored otherwise).",
+        help="Frontend gateway count for the scale-out architecture (ignored otherwise).",
         min=1,
     ),
     network_split: bool | None = typer.Option(
         None,
         "--network-split/--no-network-split",
-        help=("Force the frontend/backend network split on or off. Default follows " "the profile (scaleout splits, hub-and-spoke does not)."),
+        help=("Force the frontend/backend network split on or off. Default follows " "the architecture (scale-out splits, hub-and-spoke does not)."),
     ),
     reverse_proxy: str | None = typer.Option(
         None,
@@ -192,10 +192,10 @@ def init(
         None,
         "--edge-role",
         help=(
-            "Gateway role that runs the Ignition Edge edition. Scaleout runs all "
+            "Gateway role that runs the Ignition Edge edition. Scale-out runs all "
             "gateways standard by default; hub-and-spoke defaults its spokes to "
-            "Edge. Pass 'none' to disable the profile's edge default; pass a role "
-            "name ('frontend', 'hub', 'gateway', ...) to opt that specific role in."
+            "Edge. Pass 'none' to disable the architecture's edge default; pass a "
+            "role name ('frontend', 'hub', 'gateway', ...) to opt that role in."
         ),
         autocompletion=complete_edge_role,
     ),
@@ -204,8 +204,8 @@ def init(
         "--redundant",
         help=(
             "Make a single gateway role redundant, expanding it into a master + "
-            "backup pair (e.g. 'backend' for scaleout, 'hub' for hub-and-spoke, "
-            "'gateway' for standalone). Frontends and spokes are replicated, not "
+            "backup pair (e.g. 'backend' for scale-out, 'hub' for hub-and-spoke, "
+            "'gateway' for basic). Frontends and spokes are replicated, not "
             "paired, and are rejected."
         ),
         autocompletion=complete_redundant_role,
@@ -247,8 +247,9 @@ def init(
         "-f",
         help=(
             "Build from a saved config file (YAML or JSON, as dumped by "
-            "--dry-run) instead of a profile or the wizard. Mutually exclusive "
-            "with --profile. The project name argument overrides the file's name."
+            "--dry-run) instead of an architecture or the wizard. Mutually "
+            "exclusive with --arch. The project name argument overrides the "
+            "file's name."
         ),
     ),
     dry_run: bool = typer.Option(
@@ -275,18 +276,18 @@ def init(
 ) -> None:
     """Generate a new Ignition stack at ``<output-dir>/<name>``.
 
-    With ``--from-file``, builds from a saved config file. With ``--profile``,
-    runs non-interactively from the named profile and its flags. With neither,
-    walks the interactive wizard. ``--dry-run`` resolves the config and prints
-    it instead of writing anything.
+    With ``--from-file``, builds from a saved config file. With ``--arch``,
+    runs non-interactively from the named architecture and its flags. With
+    neither, walks the interactive wizard. ``--dry-run`` resolves the config
+    and prints it instead of writing anything.
     """
     target = ((output_dir or Path.cwd()) / name).resolve()
 
-    _validate_init_flags(profile=profile, from_file=from_file, dry_run=dry_run, fmt=output_format)
+    _validate_init_flags(arch=arch, from_file=from_file, dry_run=dry_run, fmt=output_format)
 
-    # Name validation runs before either the wizard or the profile build so
+    # Name validation runs before either the wizard or the architecture build so
     # invalid names fail fast with a clear exit code (2), instead of bubbling
-    # through the wizard's first prompt or the profile's deep model_validate.
+    # through the wizard's first prompt or the architecture's deep model_validate.
     try:
         ProjectConfig(name=name)
     except ValueError as exc:
@@ -295,12 +296,12 @@ def init(
 
     if from_file is not None:
         config = _load_from_file(from_file, name)
-    elif profile is None:
+    elif arch is None:
         config = _run_wizard_or_exit(name)
     else:
-        config = _build_from_profile(
+        config = _build_from_arch(
             name,
-            profile,
+            arch,
             spokes=spokes,
             frontends=frontends,
             force=force,
@@ -336,7 +337,7 @@ def init(
     console.print("  docker compose up -d")
     console.print(f"  open {_gateway_open_url(config)}  (admin / {config.admin_password})")
     console.print()
-    console.print(f"  config recorded in {LIFECYCLE_DIR}/ - run `ignition-stack reset` to " "regenerate or `switch-profile <name>` to reshape this stack.")
+    console.print(f"  config recorded in {LIFECYCLE_DIR}/ - run `ignition-stack reset` to " "regenerate or `switch-arch <name>` to reshape this stack.")
 
 
 def _gateway_open_url(config: ProjectConfig) -> str:
@@ -352,17 +353,17 @@ def _gateway_open_url(config: ProjectConfig) -> str:
     return f"http://localhost:{config.gateways[0].http_port}"
 
 
-def _validate_init_flags(*, profile: str | None, from_file: Path | None, dry_run: bool, fmt: str | None) -> None:
+def _validate_init_flags(*, arch: str | None, from_file: Path | None, dry_run: bool, fmt: str | None) -> None:
     """Enforce the mutual-exclusion + flag-applicability rules, or exit code 2.
 
     ``--from-file`` already fully specifies the topology, so combining it with
-    ``--profile`` is ambiguous and rejected. ``--output-format`` only shapes the
+    ``--arch`` is ambiguous and rejected. ``--output-format`` only shapes the
     ``--dry-run`` dump, so passing it without ``--dry-run`` is a usage error
     rather than a silent no-op. The value itself is validated against the two
     supported formats here so a bad ``--output-format`` fails before any build.
     """
-    if from_file is not None and profile is not None:
-        console.print("[red]error[/red]: --from-file cannot be combined with --profile; a " "config file already specifies the full topology.")
+    if from_file is not None and arch is not None:
+        console.print("[red]error[/red]: --from-file cannot be combined with --arch; a " "config file already specifies the full topology.")
         raise typer.Exit(code=2)
     if fmt is not None and not dry_run:
         console.print("[red]error[/red]: --output-format only applies with --dry-run.")
@@ -390,9 +391,9 @@ def _load_from_file(from_file: Path, name: str) -> ProjectConfig:
     return config
 
 
-def _build_from_profile(
+def _build_from_arch(
     name: str,
-    profile: str,
+    arch: str,
     *,
     spokes: int,
     frontends: int,
@@ -407,9 +408,9 @@ def _build_from_profile(
     iiot: bool,
     iiot_broker: str | None,
 ) -> ProjectConfig:
-    """Materialize a config from the named profile + CLI flags, or exit cleanly."""
+    """Materialize a config from the named architecture + CLI flags, or exit cleanly."""
     try:
-        get_profile(profile)
+        get_architecture(arch)
     except KeyError as exc:
         console.print(f"[red]error[/red]: {exc}")
         raise typer.Exit(code=2) from exc
@@ -421,9 +422,9 @@ def _build_from_profile(
             raise typer.Exit(code=2)
         proxy = ReverseProxyConfig(mode=reverse_proxy, network=proxy_network, path=proxy_path)
     # --iiot-broker implies --iiot, so naming a broker is enough to turn the
-    # overlay on; build_profile defaults the slug to 'chariot' when iiot is on
-    # without an explicit broker.
-    options = ProfileOptions(
+    # overlay on; build_architecture defaults the slug to 'chariot' when iiot is
+    # on without an explicit broker.
+    options = ArchOptions(
         spokes=spokes,
         frontends=frontends,
         force=force,
@@ -436,8 +437,8 @@ def _build_from_profile(
         iiot_broker=iiot_broker,
     )
     try:
-        config = build_profile(profile, name, options)
-    except ProfileError as exc:
+        config = build_architecture(arch, name, options)
+    except ArchitectureError as exc:
         # Red-tier advisory: exit code 3 keeps it distinguishable from a config
         # error (2) or a generic write failure (1), so callers and tests can
         # branch on it explicitly.
@@ -485,12 +486,12 @@ def reset(
     console.print(f"  {len(files)} file(s) regenerated from {LIFECYCLE_DIR}/{RECORD_NAME}")
 
 
-@app.command(name="switch-profile")
-def switch_profile(
-    profile: str = typer.Argument(
+@app.command(name="switch-arch")
+def switch_arch(
+    arch: str = typer.Argument(
         ...,
-        help="Architecture profile to switch this stack to.",
-        autocompletion=complete_profile,
+        help="System architecture to switch this stack to.",
+        autocompletion=complete_architecture,
     ),
     project_dir: Path = typer.Option(  # noqa: B008 - Typer pattern
         Path("."),
@@ -499,10 +500,10 @@ def switch_profile(
         help="The generated project to reshape. Defaults to the current directory.",
     ),
 ) -> None:
-    """Reshape a project under a different architecture profile.
+    """Reshape a project under a different system architecture.
 
     Carries the recorded database, services, reverse-proxy, and edge intent over
-    to the new profile, then regenerates in place and re-records the result.
+    to the new architecture, then regenerates in place and re-records the result.
     """
     project_dir = project_dir.resolve()
     try:
@@ -512,51 +513,52 @@ def switch_profile(
         raise typer.Exit(code=2) from exc
 
     try:
-        get_profile(profile)
+        get_architecture(arch)
     except KeyError as exc:
         console.print(f"[red]error[/red]: {exc}")
         raise typer.Exit(code=2) from exc
 
     options = _options_from_config(current)
-    # Redundancy is pinned to a profile-specific role (e.g. standalone's
-    # 'gateway'), which the target profile may not have. Building its base
-    # topology lets us check before build_profile's mark_redundant would reject
-    # it - drop the intent with an advisory rather than failing the reshape.
-    if options.redundant_role is not None and not can_host_redundant_role(get_profile(profile).build(current.name, options), options.redundant_role):
+    # Redundancy is pinned to an architecture-specific role (e.g. basic's
+    # 'gateway'), which the target architecture may not have. Building its base
+    # topology lets us check before build_architecture's mark_redundant would
+    # reject it - drop the intent with an advisory rather than failing the reshape.
+    if options.redundant_role is not None and not can_host_redundant_role(get_architecture(arch).build(current.name, options), options.redundant_role):
         console.print(
             f"[yellow]note[/yellow]: redundancy on '{options.redundant_role}' was not "
-            f"carried to {profile} (no matching gateway); re-apply with --redundant "
+            f"carried to {arch} (no matching gateway); re-apply with --redundant "
             "if the new topology has a role to pair"
         )
         options = replace(options, redundant_role=None)
     try:
-        new_config = build_profile(profile, current.name, options)
-    except ProfileError as exc:
+        new_config = build_architecture(arch, current.name, options)
+    except ArchitectureError as exc:
         console.print(f"[red]advisory[/red]: {exc}")
         raise typer.Exit(code=3) from exc
     except ValueError as exc:
         console.print(f"[red]error[/red]: {exc}")
         raise typer.Exit(code=2) from exc
 
-    # Re-graft the richer registry shapes ProfileOptions can't express (custom
+    # Re-graft the richer registry shapes ArchOptions can't express (custom
     # ids, per-instance overrides, partial attachment sets, a second database),
     # re-mapping their attachments by role and dropping any that the new topology
-    # can't host - each with a printed advisory. Resolve first so the profile's
-    # legacy database is already lowered into per-gateway attachments; the carry's
-    # one-database-per-gateway guard then sees them and won't over-attach. The
-    # carry's output is resolved again by regenerate (resolve is idempotent).
+    # can't host - each with a printed advisory. Resolve first so the
+    # architecture's legacy database is already lowered into per-gateway
+    # attachments; the carry's one-database-per-gateway guard then sees them and
+    # won't over-attach. The carry's output is resolved again by regenerate
+    # (resolve is idempotent).
     new_config = carry_registry(resolve(new_config), current, console)
 
     files = regenerate(project_dir, new_config)
-    console.print(f"[green]switched[/green] {current.profile or 'custom'} -> {profile}")
+    console.print(f"[green]switched[/green] {current.architecture or 'custom'} -> {arch}")
     console.print(f"  {len(files)} file(s) regenerated")
 
 
-def _options_from_config(config: ProjectConfig) -> ProfileOptions:
-    """Recover the profile inputs a switch should carry over from a recorded config.
+def _options_from_config(config: ProjectConfig) -> ArchOptions:
+    """Recover the architecture inputs a switch should carry over from a recorded config.
 
     Edge intent is recovered from whichever gateway runs the Edge edition (or
-    'none' to keep the new profile from re-introducing its edge default); the
+    'none' to keep the new architecture from re-introducing its edge default); the
     spoke count from the number of spoke-role gateways, the frontend count from
     the number of frontend-role gateways, and the network split is carried over
     verbatim so a reshape preserves the user's topology choice. Disabled
@@ -568,7 +570,7 @@ def _options_from_config(config: ProjectConfig) -> ProfileOptions:
     frontend_count = sum(1 for gw in config.gateways if (gw.role or "") == "frontend")
     # Redundancy intent is carried by the master node (the backup is re-derived
     # by the resolver), so recover the role/name of whichever gateway is the
-    # master and let the new profile re-expand the pair.
+    # master and let the new architecture re-expand the pair.
     redundant_role = next(
         (gw.role or gw.name for gw in config.gateways if gw.redundancy is not None and gw.redundancy.mode == "master"),
         None,
@@ -576,21 +578,21 @@ def _options_from_config(config: ProjectConfig) -> ProfileOptions:
     # Disabled built-ins are applied stack-wide, so carry over the slugs disabled
     # on EVERY gateway (the intersection) - that is the stack-wide intent, and it
     # won't over-disable a module that a hand-authored config turned off on only
-    # one node. The target profile re-applies it uniformly.
+    # one node. The target architecture re-applies it uniformly.
     disabled_sets = [set(gw.disable_builtins) for gw in config.gateways]
     disable_builtins = tuple(sorted(set.intersection(*disabled_sets))) if disabled_sets else ()
     # A recorded config is resolved: its database + services live in the
-    # registry, not the legacy fields. Recover the profile inputs from the
+    # registry, not the legacy fields. Recover the architecture inputs from the
     # registry. The primary database rides database_kind (see below); the
     # non-database instances that are default-representable ride `services`.
     # IIoT intent is recovered from the attachment roles: a stack with any
     # mqtt-transmission/mqtt-engine attachment was built with apply_iiot, so set
-    # iiot=True and the broker slug. build_profile re-runs the overlay in the new
+    # iiot=True and the broker slug. build_architecture re-runs the overlay in the new
     # topology, re-mapping Transmission/Engine onto the new roles naturally; the
     # broker instance is therefore excluded from `services` below to avoid a
     # double-add. Anything richer than `services` can express (custom ids,
     # per-instance overrides, partial/role-specific attachments, a second
-    # database) is carried after build_profile by carry_registry.
+    # database) is carried after build_architecture by carry_registry.
     iiot_broker = detect_iiot_broker(config)
     catalog = load_all_services()
     representable = tuple(inst.service for inst in config.non_database_instances() if inst.service != iiot_broker and is_default_representable(inst, config, catalog))
@@ -598,9 +600,9 @@ def _options_from_config(config: ProjectConfig) -> ProfileOptions:
     # canonical shape (id "db", default image/credentials, consumer on every
     # non-Edge gateway). A custom primary database - or any second database - is
     # left for carry_registry to re-graft, so database_kind stays None and the
-    # profile does not also lay down a colliding default DB.
+    # architecture does not also lay down a colliding default DB.
     carried_db = database_carried_by_kind(config, catalog)
-    return ProfileOptions(
+    return ArchOptions(
         spokes=spoke_count or 3,
         frontends=frontend_count or 1,
         edge_role=edge_roles[0] if edge_roles else "none",

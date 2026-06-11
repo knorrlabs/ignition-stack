@@ -1,6 +1,6 @@
 ---
 title: The configuration record
-description: Every generated project records its resolved configuration, the single artifact that powers reset, switch-profile, and the declarative dump/build loop.
+description: Every generated project records its resolved configuration, the single artifact that powers reset, switch-arch, and the declarative dump/build loop.
 ---
 
 # The configuration record
@@ -12,7 +12,7 @@ That record is a single source of truth. It holds the fully-expanded topology - 
 ## What the record powers
 
 - **[`reset`](../guides/reset-and-reshape.md#reset-to-a-clean-baseline)** reads the record, clears the generated tree (keeping `.ignition-stack/` and `modules/cache/` so pinned downloads survive), and re-runs generation. The record round-trips exactly, so a reset reproduces the original project byte-for-byte.
-- **[`switch-profile`](../guides/reset-and-reshape.md#reshape-to-a-different-profile)** reads the record, carries its database, services, reverse-proxy, and edge intent over to a different architecture profile, regenerates in place, and re-records the result.
+- **[`switch-arch`](../guides/reset-and-reshape.md#reshape-to-a-different-architecture)** reads the record, carries its database, services, reverse-proxy, and edge intent over to a different architecture, regenerates in place, and re-records the result.
 - **The [declarative dump/build loop](../guides/declarative-config.md)** is the same artifact made portable: `init --dry-run` prints the resolved config to stdout, and `init -f <file>` builds from a saved copy. The record on disk and the file you dump are the same schema, so anything you can reset you can also dump, edit, and rebuild.
 
 ## Why it is always written

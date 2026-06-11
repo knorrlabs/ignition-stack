@@ -1,12 +1,12 @@
 """Acceptance tests for the lifecycle record, reset/reshape, and scoped cleanup.
 
 Every generated project records its resolved config under ``.ignition-stack/``;
-that record is the one primitive ``reset`` and ``switch-profile`` read back to
+that record is the one primitive ``reset`` and ``switch-arch`` read back to
 regenerate or reshape in place. Three contracts:
 
 1. ``init`` records the resolved config, and ``reset`` round-trips it
    byte-for-byte (config in == config out) while clearing stale generated files.
-2. ``reset`` / ``switch-profile`` refuse a directory with no record (one that
+2. ``reset`` / ``switch-arch`` refuse a directory with no record (one that
    this CLI never generated, or whose record was removed).
 3. ``wipe`` is provably scoped to this project: the generated ``Makefile`` and
    ``ignition-stack wipe`` both name the compose project on a ``down -v`` and
@@ -31,7 +31,7 @@ def runner() -> CliRunner:
 
 
 def _init(runner: CliRunner, tmp_path: Path, *extra: str) -> Path:
-    args = ["init", "demo", "--profile", "standalone", "-o", str(tmp_path), *extra]
+    args = ["init", "demo", "--arch", "basic", "-o", str(tmp_path), *extra]
     result = runner.invoke(app, args)
     assert result.exit_code == 0, result.stdout
     return tmp_path / "demo"
@@ -47,7 +47,7 @@ def test_init_records_resolved_config(runner: CliRunner, tmp_path: Path) -> None
     assert has_record(project)
     record = read_record(project)
     assert record.name == "demo"
-    assert record.profile == "standalone"
+    assert record.architecture == "basic"
     # ...and it is a complete, runnable project alongside the record.
     assert (project / "docker-compose.yaml").is_file()
     assert (project / "Makefile").is_file()
@@ -90,37 +90,37 @@ def test_reset_refuses_a_directory_without_a_record(runner: CliRunner, tmp_path:
     assert "no lifecycle record" in result.stdout.lower()
 
 
-def test_switch_profile_reshapes_and_rerecords(runner: CliRunner, tmp_path: Path) -> None:
-    # Start from a 2-gateway scaleout project.
-    result = runner.invoke(app, ["init", "demo", "--profile", "scaleout", "-o", str(tmp_path)])
+def test_switch_arch_reshapes_and_rerecords(runner: CliRunner, tmp_path: Path) -> None:
+    # Start from a 2-gateway scale-out project.
+    result = runner.invoke(app, ["init", "demo", "--arch", "scale-out", "-o", str(tmp_path)])
     assert result.exit_code == 0, result.stdout
     project = tmp_path / "demo"
     assert (project / "services" / "frontend").is_dir()
 
-    result = runner.invoke(app, ["switch-profile", "standalone", "-C", str(project)])
+    result = runner.invoke(app, ["switch-arch", "basic", "-C", str(project)])
     assert result.exit_code == 0, result.stdout
 
     record = read_record(project)
-    assert record.profile == "standalone"
+    assert record.architecture == "basic"
     assert [gw.name for gw in record.gateways] == ["gateway"]
     # Stale multi-gateway service dirs are gone; the single-gateway tree is back.
     assert not (project / "services" / "frontend").exists()
     assert (project / "services" / "ignition").is_dir()
 
 
-def test_switch_profile_drops_unhostable_redundancy(runner: CliRunner, tmp_path: Path) -> None:
-    # A redundant standalone pins redundancy to the 'gateway' role, which the
-    # scaleout topology (frontend/backend) has no place for. The reshape must
+def test_switch_arch_drops_unhostable_redundancy(runner: CliRunner, tmp_path: Path) -> None:
+    # A redundant basic stack pins redundancy to the 'gateway' role, which the
+    # scale-out topology (frontend/backend) has no place for. The reshape must
     # succeed and drop the intent with an advisory - not fail with exit 2.
     project = _init(runner, tmp_path, "--redundant", "gateway")
     assert any(gw.redundancy is not None for gw in read_record(project).gateways)
 
-    result = runner.invoke(app, ["switch-profile", "scaleout", "-C", str(project)])
+    result = runner.invoke(app, ["switch-arch", "scale-out", "-C", str(project)])
 
     assert result.exit_code == 0, result.stdout
     assert "redundancy on 'gateway' was not carried" in result.stdout
     record = read_record(project)
-    assert record.profile == "scaleout"
+    assert record.architecture == "scale-out"
     assert all(gw.redundancy is None for gw in record.gateways)
 
 

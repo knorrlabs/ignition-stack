@@ -2,7 +2,7 @@
 
 Validation criteria from the Phase 4 plan:
 
-1. Marking the standalone gateway redundant resolves to two gateways
+1. Marking the basic gateway redundant resolves to two gateways
    (``gateway``, ``gateway-backup``); the backup carries ``redundancy.mode ==
    "backup"`` and a ``peer`` pointing at the master.
 2. Scaleout ``--redundant backend`` and hub-and-spoke ``--redundant hub`` each
@@ -29,6 +29,7 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
+from ignition_stack.architectures import ArchOptions, build_architecture
 from ignition_stack.compose.engine import render_compose
 from ignition_stack.compose.writer import write_project
 from ignition_stack.config import (
@@ -39,10 +40,9 @@ from ignition_stack.config import (
     load_config,
 )
 from ignition_stack.postsetup import generate_post_setup
-from ignition_stack.profiles import ProfileOptions, build_profile
 from ignition_stack.services.resolver import resolve
 
-GOLDEN_DIR = Path(__file__).parent / "golden" / "profiles"
+GOLDEN_DIR = Path(__file__).parent / "golden" / "architectures"
 
 
 def _parse(text: str) -> dict:
@@ -64,8 +64,8 @@ def _check_or_update_golden(rel_path: str, actual: str) -> None:
 # --------------------------------------------------------------------------- #
 
 
-def test_redundant_standalone_expands_to_pair() -> None:
-    config = build_profile("standalone", "demo", ProfileOptions(redundant_role="gateway"))
+def test_redundant_basic_expands_to_pair() -> None:
+    config = build_architecture("basic", "demo", ArchOptions(redundant_role="gateway"))
     resolved = resolve(config)
 
     names = [gw.name for gw in resolved.gateways]
@@ -89,8 +89,8 @@ def test_redundant_standalone_expands_to_pair() -> None:
 # --------------------------------------------------------------------------- #
 
 
-def test_scaleout_redundant_backend_pairs_only_backend() -> None:
-    config = build_profile("scaleout", "demo", ProfileOptions(frontends=2, redundant_role="backend"))
+def test_scale_out_redundant_backend_pairs_only_backend() -> None:
+    config = build_architecture("scale-out", "demo", ArchOptions(frontends=2, redundant_role="backend"))
     resolved = resolve(config)
     names = [gw.name for gw in resolved.gateways]
     assert names == ["frontend-1", "frontend-2", "backend", "backend-backup"]
@@ -102,7 +102,7 @@ def test_scaleout_redundant_backend_pairs_only_backend() -> None:
 
 
 def test_hub_redundant_hub_pairs_only_hub() -> None:
-    config = build_profile("hub-and-spoke", "demo", ProfileOptions(spokes=3, redundant_role="hub"))
+    config = build_architecture("hub-and-spoke", "demo", ArchOptions(spokes=3, redundant_role="hub"))
     resolved = resolve(config)
     redundant = {gw.name for gw in resolved.gateways if gw.redundancy is not None}
     assert redundant == {"hub", "hub-backup"}
@@ -112,14 +112,14 @@ def test_hub_redundant_hub_pairs_only_hub() -> None:
 
 @pytest.mark.parametrize("role", ["frontend", "spoke"])
 def test_replicated_roles_rejected(role: str) -> None:
-    profile = "scaleout" if role == "frontend" else "hub-and-spoke"
+    arch = "scale-out" if role == "frontend" else "hub-and-spoke"
     with pytest.raises(ValueError, match="horizontally replicated"):
-        build_profile(profile, "demo", ProfileOptions(redundant_role=role))
+        build_architecture(arch, "demo", ArchOptions(redundant_role=role))
 
 
 def test_unknown_redundant_role_rejected() -> None:
     with pytest.raises(ValueError, match="no gateway matches"):
-        build_profile("standalone", "demo", ProfileOptions(redundant_role="nope"))
+        build_architecture("basic", "demo", ArchOptions(redundant_role="nope"))
 
 
 # --------------------------------------------------------------------------- #
@@ -127,16 +127,16 @@ def test_unknown_redundant_role_rejected() -> None:
 # --------------------------------------------------------------------------- #
 
 
-def _redundant_scaleout() -> ProjectConfig:
-    return resolve(build_profile("scaleout", "demo", ProfileOptions(frontends=1, redundant_role="backend")))
+def _redundant_scale_out() -> ProjectConfig:
+    return resolve(build_architecture("scale-out", "demo", ArchOptions(frontends=1, redundant_role="backend")))
 
 
 def test_redundant_compose_golden() -> None:
-    _check_or_update_golden("scaleout-redundant/docker-compose.yaml", render_compose(_redundant_scaleout()))
+    _check_or_update_golden("scale-out-redundant/docker-compose.yaml", render_compose(_redundant_scale_out()))
 
 
 def test_redundant_compose_wiring() -> None:
-    parsed = _parse(render_compose(_redundant_scaleout()))
+    parsed = _parse(render_compose(_redundant_scale_out()))
     services = parsed["services"]
     volumes = parsed["volumes"]
 
@@ -167,7 +167,7 @@ def test_redundant_compose_wiring() -> None:
 
 
 def test_redundant_seeds_redundancy_xml(tmp_path: Path) -> None:
-    write_project(_redundant_scaleout(), tmp_path / "demo")
+    write_project(_redundant_scale_out(), tmp_path / "demo")
     master_xml = (tmp_path / "demo" / "services" / "backend" / "redundancy.xml").read_text()
     backup_xml = (tmp_path / "demo" / "services" / "backend-backup" / "redundancy.xml").read_text()
     assert '<entry key="redundancy.noderole">Master</entry>' in master_xml
@@ -187,7 +187,7 @@ def test_redundant_seeds_redundancy_xml(tmp_path: Path) -> None:
 
 
 def test_redundancy_post_setup() -> None:
-    body = generate_post_setup(_redundant_scaleout())
+    body = generate_post_setup(_redundant_scale_out())
     assert "redundancy" in body.lower()
     # Names both nodes and cites the GAN port.
     assert "backend" in body
@@ -198,7 +198,7 @@ def test_redundancy_post_setup() -> None:
 
 
 def test_no_redundancy_no_post_setup_section() -> None:
-    body = generate_post_setup(resolve(build_profile("standalone", "demo", ProfileOptions())))
+    body = generate_post_setup(resolve(build_architecture("basic", "demo", ArchOptions())))
     assert "redundancy" not in body.lower()
 
 
@@ -208,7 +208,7 @@ def test_no_redundancy_no_post_setup_section() -> None:
 
 
 def test_redundant_edge_yields_two_edge_nodes() -> None:
-    config = build_profile("standalone", "demo", ProfileOptions(edge_role="gateway", redundant_role="gateway"))
+    config = build_architecture("basic", "demo", ArchOptions(edge_role="gateway", redundant_role="gateway"))
     resolved = resolve(config)
     editions = {gw.name: gw.ignition_edition for gw in resolved.gateways}
     assert editions == {"gateway": "edge", "gateway-backup": "edge"}
@@ -236,14 +236,14 @@ def test_edge_redundancy_pair_only() -> None:
 
 
 def test_redundant_reresolve_is_idempotent() -> None:
-    resolved = _redundant_scaleout()
+    resolved = _redundant_scale_out()
     again = resolve(resolved)
     assert [gw.name for gw in again.gateways] == [gw.name for gw in resolved.gateways]
 
 
 def test_redundant_dump_reload_rebuild_is_stable(tmp_path: Path) -> None:
     """Dump a resolved redundant stack, reload it, and rebuild: byte-identical."""
-    resolved = _redundant_scaleout()
+    resolved = _redundant_scale_out()
     dumped = dump_config(resolved, "yaml")
     arch = tmp_path / "arch.yml"
     arch.write_text(dumped, encoding="utf-8")

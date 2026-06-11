@@ -11,7 +11,7 @@ keeps it honest:
   assert every command path and every option flag actually appears in the
   rendered page, guarding against a generator bug that silently drops surface.
 * ``test_required_docs_pages_exist`` asserts the required page set (get-started,
-  concepts, every profile, every service, guides, reference, contribute) is
+  concepts, every architecture, every service, guides, reference, contribute) is
   present on disk.
 
 The generator lives outside any importable package, so it is loaded by path.
@@ -98,11 +98,10 @@ def test_cli_reference_covers_every_option() -> None:
         "concepts/how-generation-works.md",
         "concepts/seeding.md",
         "concepts/configuration-record.md",
-        "profiles/index.md",
-        "profiles/standalone.md",
-        "profiles/scaleout.md",
-        "profiles/hub-and-spoke.md",
-        "profiles/mcp-n8n.md",
+        "architectures/index.md",
+        "architectures/basic.md",
+        "architectures/scale-out.md",
+        "architectures/hub-and-spoke.md",
         "services/index.md",
         "services/postgres.md",
         "services/mysql.md",

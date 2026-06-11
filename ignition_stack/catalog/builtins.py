@@ -57,7 +57,7 @@ class BuiltinModule(BaseModel):
         Field(
             default=False,
             description=(
-                "Whether the wizard pre-checks this module in its opt-in selection. Curation only - it does not change the engine math or the non-interactive profile path."
+                "Whether the wizard pre-checks this module in its opt-in selection. Curation only - it does not change the engine math or the non-interactive architecture path."
             ),
         ),
     ]
@@ -94,7 +94,7 @@ class BuiltinCatalog(BaseModel):
         """Slugs the wizard pre-checks in its opt-in module selection.
 
         Curation only: this seeds the wizard checkbox and never feeds the
-        engine math or the non-interactive profile path. The matching JDBC
+        engine math or the non-interactive architecture path. The matching JDBC
         driver is added on top by :func:`jdbc_driver_for`, so JDBC drivers are
         deliberately absent here (they are database-driven, not statically on).
         """
@@ -175,7 +175,7 @@ def validate_disable_slugs(slugs: list[str]) -> None:
     """Raise ``ValueError`` if any slug is not a known built-in.
 
     Shared by ``GatewayConfig`` field validation (construction-time) and
-    ``profiles.apply_disable_builtins`` (post-construction mutation, which
+    ``architectures.apply_disable_builtins`` (post-construction mutation, which
     pydantic does not re-validate), so the wizard/CLI path is guarded too. A
     typo would otherwise be a silent no-op - the slug just isn't disabled.
     """

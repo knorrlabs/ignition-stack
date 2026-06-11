@@ -29,8 +29,8 @@ Every image is pinned and overridable through an `.env` key (for example `POSTGR
 
 ## How services reach a stack
 
-- **Databases** are chosen at the wizard's database prompt: Postgres (the default), MySQL, MariaDB, MongoDB, or none. The non-interactive `--profile` path uses Postgres.
-- **n8n** is bundled automatically by the [mcp-n8n profile](../profiles/mcp-n8n.md).
+- **Databases** are chosen at the wizard's database prompt: Postgres (the default), MySQL, MariaDB, MongoDB, or none. The non-interactive `--arch` path uses Postgres.
+- **[n8n](./n8n.md)** is added as a service, optionally paired with the Ignition MCP module drop-in (`mcp_dropin`).
 - **Dependencies** are pulled in by the resolver. A service that `requires` a capability gets it satisfied automatically: Keycloak requires `sql-database`, so it brings in Postgres (and a dedicated `keycloak` logical database) when none is present.
 
 The brokers, the Kafka broker, the simulators, and Keycloak are full catalog entries: each ships a manifest, a compose fragment, seed assets, and a golden snapshot under `tests/golden/services/`. They are composed into a stack through the project's resolved `services` list, which the [generation engine](../concepts/how-generation-works.md) and resolver act on.

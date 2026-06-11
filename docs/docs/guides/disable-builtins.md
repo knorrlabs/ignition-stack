@@ -10,7 +10,7 @@ Every Ignition gateway ships with a set of built-in IA modules — Vision, SFC, 
 There are two ways in, depending on how you start a stack:
 
 - **The interactive wizard is opt-in.** It pre-selects a small curated set — Perspective, OPC-UA, SQL Bridge, the historian pair, Alarm Notification, Reporting, and the JDBC driver matching your database — and you add or remove from there. The common path is one keystroke: accept the lean default and move on.
-- **The CLI is opt-out.** `--disable-builtin <slug>` (repeatable) turns modules off on top of the full set; pass none and every built-in stays on, so non-interactive profile builds are unchanged.
+- **The CLI is opt-out.** `--disable-builtin <slug>` (repeatable) turns modules off on top of the full set; pass none and every built-in stays on, so non-interactive architecture builds are unchanged.
 
 Both land on the same stored shape — a `disable_builtins` list the generator inverts into the gateway's module whitelist — so the two paths never diverge.
 
@@ -46,7 +46,7 @@ A few consequences worth knowing:
 - **Nothing disabled, nothing emitted.** If you disable no modules, the variable is omitted entirely, so an existing stack renders byte-for-byte unchanged.
 - **Disabling everything emits an empty whitelist** (which quarantines all modules) rather than omitting the variable and silently re-enabling everything.
 - **The complete built-in set is pinned** in `builtin_modules.yaml`. The inversion needs the full list — a stale one would quarantine forgotten modules — so an opt-in `smoke` test re-derives the set from a booted gateway and fails on drift.
-- **A reshape keeps your choices.** `switch-profile` carries the disabled set across, so changing profiles does not silently bring Vision or SFC back.
+- **A reshape keeps your choices.** `switch-arch` carries the disabled set across, so changing architectures does not silently bring Vision or SFC back.
 
 ## Verify it
 

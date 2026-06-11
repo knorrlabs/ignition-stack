@@ -13,8 +13,8 @@ of the resolved :class:`~ignition_stack.config.schema.ProjectConfig`:
 1. Each catalog service's manifest declares its deferred connections in
    ``post_setup`` (a list of ``connection``/``reason`` pairs). The database and
    every selected service contribute theirs.
-2. Three profile-level flags add steps the matrix flags as not-fully-seedable:
-   ``profile == "scaleout"`` (the gateway-network link is UI-approved),
+2. Stack-level flags add steps the matrix flags as not-fully-seedable:
+   any gateway with ``gan_outgoing`` (the gateway-network link is UI-approved),
    ``mcp_dropin`` (the EA-gated MCP module), and a set ``reverse_proxy`` (the
    Traefik scaffold).
 
@@ -51,7 +51,7 @@ _NO_MANUAL_STEPS = """\
 from files. Bring it up with `docker compose up -d` and the gateway is ready.
 """
 
-# Reasons for the profile-level steps that aren't tied to a single service
+# Reasons for the stack-level steps that aren't tied to a single service
 # manifest. Kept here (not in a manifest) because they're a property of the
 # resolved topology, not of any one catalog entry.
 _GATEWAY_NETWORK_LINK_REASON = (
@@ -87,7 +87,7 @@ class _Step:
     """One manual follow-up: a deferred connection plus why it's deferred.
 
     ``service`` is the catalog slug the step came from (so the renderer can pull
-    that service's ``.env`` keys), or ``""`` for the profile-level steps that
+    that service's ``.env`` keys), or ``""`` for the stack-level steps that
     aren't owned by a single service.
     """
 
@@ -112,7 +112,7 @@ def generate_post_setup(config: ProjectConfig) -> str:
 
 
 def _collect_steps(config: ProjectConfig) -> list[_Step]:
-    """Gather every deferred connection, service steps first then profile steps."""
+    """Gather every deferred connection, service steps first then stack steps."""
     catalog = load_all_services()
     steps: list[_Step] = []
 
@@ -308,7 +308,7 @@ def _gan_links(config: ProjectConfig) -> list[dict[str, object]]:
     """Auto-formed Gateway Network links, for the gateway-network-link step.
 
     One entry per outgoing connection a gateway declares in ``gan_outgoing``
-    (scaleout frontend -> backend, hub-and-spoke spoke -> hub): it names the
+    (scale-out frontend -> backend, hub-and-spoke spoke -> hub): it names the
     source and target, their UIs, and the plain port the link rides so the
     verification readout can point the reader at each end.
     """

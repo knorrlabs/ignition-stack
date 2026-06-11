@@ -1,11 +1,10 @@
-"""Phase 7 (issue #43): the Custom-track composer + the Quick->tweak handoff.
+"""The per-gateway composer, reached via the wizard summary's *tweak* action.
 
-The composer is the per-gateway service editor both wizard tracks can land in:
-the Custom track starts there from a bare topology preset; the Quick track
-reaches it through the summary's *tweak* action with the built config
-pre-filled. These tests drive ``wizard.walk`` end to end with a scripted
-prompter, the same harness ``test_profiles.py`` uses, and assert on the
-resolved registry the composer produced.
+The composer is the per-gateway service editor the architecture-first wizard
+lands in through the summary's *tweak* action, with the built config pre-filled.
+These tests drive ``wizard.walk`` end to end with a scripted prompter, the same
+harness ``test_architectures.py`` uses, and assert on the resolved registry the
+composer produced.
 """
 
 from __future__ import annotations
@@ -13,9 +12,9 @@ from __future__ import annotations
 from collections.abc import Sequence
 from pathlib import Path
 
+from ignition_stack.architectures import ArchOptions, build_architecture
 from ignition_stack.catalog.builtins import default_builtin_catalog
 from ignition_stack.config import dump_config, load_config
-from ignition_stack.profiles import ProfileOptions, build_profile
 from ignition_stack.services.loader import load_all_services
 from ignition_stack.services.resolver import resolve
 from ignition_stack.wizard import walk
@@ -29,7 +28,7 @@ from ignition_stack.wizard_composer import (
 class ScriptedPrompter:
     """Pre-recorded answers, in order; also records checkbox choice triples.
 
-    Mirrors ``test_profiles.ScriptedPrompter`` (kept local: the tests directory
+    Mirrors ``test_architectures.ScriptedPrompter`` (kept local: the tests directory
     is not a package). ``checkbox_choices`` captures the ``(value, label,
     checked)`` triples each checkbox prompt offered, so tests can assert what
     was *pre-checked*, not just what the script answered.
@@ -68,18 +67,17 @@ def _attachments(config, gw_name: str) -> set[tuple[str, str]]:
 
 
 # --------------------------------------------------------------------------- #
-# Quick -> tweak handoff
+# Wizard summary -> tweak handoff
 # --------------------------------------------------------------------------- #
 
 
 def test_tweak_handoff_adds_emqx_and_keeps_everything_else() -> None:
-    """Quick standalone+postgres -> tweak -> add emqx -> generate: the final
+    """Basic+postgres -> tweak -> add emqx -> generate: the final
     config carries the emqx attachment and is otherwise identical to the
     pre-tweak build (resolved)."""
     prompter = ScriptedPrompter(
         [
-            "quick",  # track gate
-            "standalone",  # profile
+            "basic",  # architecture
             "postgres",  # database
             "none",  # edge_role
             False,  # redundancy
@@ -108,20 +106,19 @@ def test_tweak_handoff_adds_emqx_and_keeps_everything_else() -> None:
     stripped.service_instances = [inst for inst in stripped.service_instances if inst.id != "emqx"]
     stripped.gateways[0].services = [att for att in stripped.gateways[0].services if att.instance != "emqx"]
     expected = resolve(
-        build_profile(
-            "standalone",
+        build_architecture(
+            "basic",
             "demo",
-            ProfileOptions(disable_builtins=outcome.options.disable_builtins),
+            ArchOptions(disable_builtins=outcome.options.disable_builtins),
         )
     )
     assert stripped.model_dump(mode="json") == expected.model_dump(mode="json")
 
 
-def test_quick_summary_cancel_marks_unconfirmed() -> None:
+def test_summary_cancel_marks_unconfirmed() -> None:
     prompter = ScriptedPrompter(
         [
-            "quick",
-            "standalone",
+            "basic",
             "postgres",
             "none",
             False,  # redundancy
@@ -134,14 +131,13 @@ def test_quick_summary_cancel_marks_unconfirmed() -> None:
     assert walk("demo", prompter).confirmed is False
 
 
-def test_quick_summary_preview_then_generate(capsys) -> None:
+def test_summary_preview_then_generate(capsys) -> None:
     """Preview at the summary prints the resolved config dump, then re-shows
     the prompt; choosing generate afterwards confirms the outcome and leaves
     the config identical to a direct generate."""
     base_prompter = ScriptedPrompter(
         [
-            "quick",
-            "standalone",
+            "basic",
             "postgres",
             "none",  # edge_role
             False,  # redundancy
@@ -155,8 +151,7 @@ def test_quick_summary_preview_then_generate(capsys) -> None:
 
     preview_prompter = ScriptedPrompter(
         [
-            "quick",
-            "standalone",
+            "basic",
             "postgres",
             "none",
             False,
@@ -176,13 +171,12 @@ def test_quick_summary_preview_then_generate(capsys) -> None:
     assert "gateways" in out
 
 
-def test_quick_summary_preview_then_cancel(capsys) -> None:
+def test_summary_preview_then_cancel(capsys) -> None:
     """Preview prints the dump and then re-shows the prompt; cancelling marks
     the outcome as unconfirmed."""
     prompter = ScriptedPrompter(
         [
-            "quick",
-            "standalone",
+            "basic",
             "postgres",
             "none",
             False,
@@ -201,23 +195,27 @@ def test_quick_summary_preview_then_cancel(capsys) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Custom track from scratch
+# Composer reached via the summary's tweak action
 # --------------------------------------------------------------------------- #
 
 
-def test_composer_from_scratch_hub_and_spoke_with_shared_keycloak(capsys) -> None:
-    """Hub-and-spoke preset with edge spokes: attach keycloak to the hub, share
-    it with an edge spoke (allowed: idp is not never_on_edge), reuse the
-    auto-added postgres via the singleton-share path, and have a second
-    database on the hub rejected with the state intact."""
+def test_composer_tweak_hub_and_spoke_with_shared_keycloak(capsys) -> None:
+    """Hub-and-spoke with edge spokes and no database: tweak into the composer,
+    attach keycloak to the hub, share it with an edge spoke (allowed: idp is not
+    never_on_edge), reuse the auto-added postgres via the singleton-share path,
+    and have a second database on the hub rejected with the state intact."""
     prompter = ScriptedPrompter(
         [
-            "custom",  # track gate
-            "hub-and-spoke",  # topology preset
+            "hub-and-spoke",  # architecture
             2,  # spokes
+            "none",  # database -> start with no DB; the composer populates it
             "spoke",  # edge_role -> spokes run Edge
             False,  # network split
             False,  # redundancy
+            False,  # iiot
+            False,  # modules
+            "ports",  # exposure
+            "tweak",  # summary -> composer, pre-filled
             # add keycloak to the hub (idp; no role prompt):
             "add",
             "hub",
@@ -263,7 +261,7 @@ def test_databases_not_offered_to_edge_gateways() -> None:
     """The composer filters never_on_edge services out of an Edge gateway's
     catalog choices instead of erroring after selection."""
     catalog = load_all_services()
-    config = resolve(build_profile("hub-and-spoke", "demo", ProfileOptions(spokes=1, database_kind=None)))
+    config = resolve(build_architecture("hub-and-spoke", "demo", ArchOptions(spokes=1, database_kind=None)))
     hub = next(gw for gw in config.gateways if gw.name == "hub")
     spoke = next(gw for gw in config.gateways if gw.name == "spoke-1")
     assert spoke.ignition_edition == "edge"
@@ -286,52 +284,37 @@ def test_mqtt_broker_choices_lists_catalog_brokers_chariot_first() -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Per-gateway modules (#42 absorbed, per-gateway in Custom)
+# Per-gateway modules (#42 absorbed, per-gateway in the composer)
 # --------------------------------------------------------------------------- #
 
 
 def test_composer_per_gateway_modules_precheck_follows_that_gateways_db() -> None:
-    """The per-gateway checkbox pre-checks the curated set plus the JDBC driver
-    for the database THIS gateway attaches to, and the edit applies to that
-    gateway only."""
-    prompter = ScriptedPrompter(
-        [
-            "custom",  # track gate
-            "standalone",  # topology preset
-            "none",  # edge_role
-            False,  # redundancy
-            # give the gateway a mariadb:
-            "add",
-            "gateway",
-            "mariadb",
-            # set its modules:
-            "modules",
-            "gateway",
-            ["perspective"],  # ENABLE only Perspective
-            "done",
-            "generate",
-        ]
-    )
-    outcome = walk("demo", prompter)
-    assert outcome.confirmed
+    """A pristine gateway's per-gateway checkbox pre-checks the curated set plus
+    the JDBC driver for the database THIS gateway attaches to.
 
-    # The checkbox offered the #42 curated default plus mariadb's JDBC driver.
-    assert len(prompter.checkbox_choices) == 1
-    prechecked = {value for value, _, checked in prompter.checkbox_choices[0] if checked}
+    A no-database basic stack whose single gateway is attached to a mariadb (id
+    != slug guards against the legacy shorthand) carries no ``disable_builtins``,
+    so ``module_choices_for_gateway`` pre-checks the #42 curated default plus the
+    mariadb driver - not the static default."""
+    config = resolve(
+        build_architecture(
+            "basic",
+            "demo",
+            ArchOptions(database_kind="mariadb"),
+        )
+    )
+    gw = config.gateways[0]
+    assert not gw.disable_builtins  # pristine: no per-gateway module choice yet
+    choices = module_choices_for_gateway(config, gw)
+    prechecked = {value for value, _, checked in choices if checked}
     catalog = default_builtin_catalog()
     assert prechecked == catalog.default_enabled_slugs | {"mariadb-jdbc-driver"}
-
-    gw = outcome.config.gateways[0]
-    assert set(gw.disable_builtins) == catalog.slugs - {"perspective"}
-    # Third-party modules (gw.modules) stay resolver-managed: mariadb has a
-    # built-in driver, so nothing was added there.
-    assert gw.modules == []
 
 
 def test_module_choices_precheck_current_state_when_already_customized() -> None:
     """A gateway that already carries disable_builtins is pre-checked with its
     current enabled set, not the curated default."""
-    config = resolve(build_profile("standalone", "demo", ProfileOptions(disable_builtins=("vision", "sfc"))))
+    config = resolve(build_architecture("basic", "demo", ArchOptions(disable_builtins=("vision", "sfc"))))
     gw = config.gateways[0]
     choices = module_choices_for_gateway(config, gw)
     prechecked = {value for value, _, checked in choices if checked}
@@ -349,12 +332,16 @@ def test_composer_expresses_the_issue_heterogeneous_stack() -> None:
     (Transmission) and never touches a database."""
     prompter = ScriptedPrompter(
         [
-            "custom",  # track gate
-            "hub-and-spoke",  # topology preset
+            "hub-and-spoke",  # architecture
             2,  # spokes
+            "none",  # database -> none; the composer populates the registry
             "spoke",  # spokes run Edge
             False,  # network split
             False,  # redundancy
+            False,  # iiot
+            False,  # modules
+            "ports",  # exposure
+            "tweak",  # summary -> composer
             # gw2 = spoke-1, flipped to standard so it may hold a database:
             "edition",
             "spoke-1",
@@ -419,12 +406,16 @@ def test_composer_config_round_trips_as_fixed_point(tmp_path: Path) -> None:
     unchanged (the declarative -f parity contract)."""
     prompter = ScriptedPrompter(
         [
-            "custom",
             "hub-and-spoke",
             2,
+            "none",  # database
             "spoke",
             False,  # network split
             False,  # redundancy
+            False,  # iiot
+            False,  # modules
+            "ports",  # exposure
+            "tweak",  # summary -> composer
             "edition",
             "spoke-1",
             "standard",
@@ -468,12 +459,16 @@ def test_composer_remove_share_rename_and_iiot_round_trip() -> None:
     remove (with last-attachment instance pruning) through the loop."""
     prompter = ScriptedPrompter(
         [
-            "custom",
-            "scaleout",  # preset
+            "scale-out",  # architecture
             1,  # frontends
+            "none",  # database
             "none",  # edge_role
             True,  # network split
             False,  # redundancy
+            False,  # iiot
+            False,  # modules
+            "ports",  # exposure
+            "tweak",  # summary -> composer
             # stack-level n8n (no attachment):
             "stack",
             "n8n",

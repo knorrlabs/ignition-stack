@@ -22,13 +22,12 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: "category",
-      label: "Architecture profiles",
-      link: { type: "doc", id: "profiles/index" },
+      label: "Architectures",
+      link: { type: "doc", id: "architectures/index" },
       items: [
-        "profiles/standalone",
-        "profiles/scaleout",
-        "profiles/hub-and-spoke",
-        "profiles/mcp-n8n",
+        "architectures/basic",
+        "architectures/scale-out",
+        "architectures/hub-and-spoke",
       ],
     },
     {

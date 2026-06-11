@@ -14,6 +14,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
+from ignition_stack.architectures import ArchOptions, build_architecture
 from ignition_stack.catalog.builtins import (
     default_builtin_catalog,
     jdbc_driver_for,
@@ -24,7 +25,6 @@ from ignition_stack.cli import _options_from_config, app
 from ignition_stack.compose.engine import render_compose
 from ignition_stack.config import dump_config, load_config
 from ignition_stack.config.schema import GatewayConfig, ProjectConfig
-from ignition_stack.profiles import ProfileOptions, build_profile
 from ignition_stack.services.resolver import resolve
 
 VISION = "com.inductiveautomation.vision"
@@ -201,21 +201,21 @@ def test_disabling_all_builtins_emits_empty_whitelist_not_omitted() -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Profile + resolver plumbing
+# Architecture + resolver plumbing
 # --------------------------------------------------------------------------- #
 
 
-def test_profile_applies_disable_to_every_gateway() -> None:
-    config = build_profile("scaleout", "demo", ProfileOptions(disable_builtins=("vision",)))
+def test_architecture_applies_disable_to_every_gateway() -> None:
+    config = build_architecture("scale-out", "demo", ArchOptions(disable_builtins=("vision",)))
     assert config.gateways  # sanity
     assert all(gw.disable_builtins == ["vision"] for gw in config.gateways)
 
 
 def test_redundancy_backup_inherits_disable_builtins() -> None:
-    config = build_profile(
-        "standalone",
+    config = build_architecture(
+        "basic",
         "demo",
-        ProfileOptions(redundant_role="gateway", disable_builtins=("vision", "sfc")),
+        ArchOptions(redundant_role="gateway", disable_builtins=("vision", "sfc")),
     )
     resolved = resolve(config)
     backups = [gw for gw in resolved.gateways if gw.name.endswith("-backup")]
@@ -236,8 +236,8 @@ def test_cli_disable_builtin_flag_emits_whitelist(tmp_path: Path) -> None:
         [
             "init",
             "demo",
-            "--profile",
-            "standalone",
+            "--arch",
+            "basic",
             "--disable-builtin",
             "vision",
             "--disable-builtin",
@@ -261,8 +261,8 @@ def test_cli_unknown_disable_builtin_exits_2(tmp_path: Path) -> None:
         [
             "init",
             "demo",
-            "--profile",
-            "standalone",
+            "--arch",
+            "basic",
             "--disable-builtin",
             "visionn",
             "-o",
@@ -292,10 +292,10 @@ def test_disable_builtins_survives_dump_load_round_trip(tmp_path: Path) -> None:
     assert reloaded.gateways[0].disable_builtins == ["vision", "sfc"]
 
 
-def test_switch_profile_recovers_disable_builtins() -> None:
-    """Reshaping a stack (switch-profile) must carry the disabled built-ins, or a
-    profile switch would silently re-enable Vision/SFC. Recovery is the slugs
+def test_switch_arch_recovers_disable_builtins() -> None:
+    """Reshaping a stack (switch-arch) must carry the disabled built-ins, or a
+    an architecture switch would silently re-enable Vision/SFC. Recovery is the slugs
     disabled on every gateway."""
-    config = build_profile("scaleout", "demo", ProfileOptions(disable_builtins=("vision", "sfc")))
+    config = build_architecture("scale-out", "demo", ArchOptions(disable_builtins=("vision", "sfc")))
     recovered = _options_from_config(config)
     assert set(recovered.disable_builtins) == {"vision", "sfc"}
