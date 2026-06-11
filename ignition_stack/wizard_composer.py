@@ -1,10 +1,11 @@
-"""The Custom-track composer: an interactive editor for the service registry.
+"""The composer: an interactive editor for the service registry.
 
-Phase 7's second door. Where the Quick track (``wizard.walk``) walks a linear
-profile flow, the composer lets the user attach services to individual
-gateways, share one instance across gateways, and wire the IIoT pipeline - the
-heterogeneous shapes the flat profile flow cannot express. Both tracks produce
-the same :class:`ProjectConfig`; the composer simply edits one directly.
+Where the wizard's architecture flow (``wizard.walk``) walks a linear set of
+questions, the composer lets the user attach services to individual gateways,
+share one instance across gateways, and wire the IIoT pipeline - the
+heterogeneous shapes the flat architecture flow cannot express. The composer is
+reached from the wizard summary's *tweak* action, with the built+resolved
+config pre-filled, and edits it directly.
 
 The canonical working config is always **already resolved**: legacy
 ``database``/``services`` shims are empty, the registry is populated, and every
@@ -36,9 +37,9 @@ from pydantic import ValidationError
 from rich.console import Console
 from rich.table import Table
 
+from ignition_stack.architectures import ArchOptions, apply_iiot
 from ignition_stack.catalog.builtins import default_builtin_catalog, jdbc_driver_for
 from ignition_stack.config import ProjectConfig, ServiceAttachment, ServiceInstance, dump_config
-from ignition_stack.profiles import ProfileOptions, apply_iiot
 from ignition_stack.services.loader import load_all_services
 from ignition_stack.services.manifest import ServiceManifest
 from ignition_stack.services.resolver import ResolveError, resolve
@@ -77,15 +78,16 @@ class ComposerResult:
 
     ``config`` is the resolved working config; ``confirmed`` is True only when
     the user chose *generate* at the composer summary (a *cancel* surfaces as
-    the same exit-130 path the Quick track uses). ``profile``/``options`` carry
-    the starting preset so the :class:`~ignition_stack.wizard.WizardOutcome`
-    stays populated for the lifecycle record and tests.
+    the same exit-130 path the architecture flow uses). ``architecture``/
+    ``options`` carry the originating architecture so the
+    :class:`~ignition_stack.wizard.WizardOutcome` stays populated for the
+    lifecycle record and tests.
     """
 
     config: ProjectConfig
     confirmed: bool
-    profile: str
-    options: ProfileOptions
+    architecture: str
+    options: ArchOptions
     summary_lines: list[str] = field(default_factory=list)
 
 
@@ -97,8 +99,8 @@ class ComposerResult:
 def edit_loop(
     prompter: Prompter,
     working: ProjectConfig,
-    preset_slug: str,
-    preset_options: ProfileOptions,
+    arch_slug: str,
+    arch_options: ArchOptions,
 ) -> ComposerResult:
     """Run the composer edit loop over an already-resolved ``working`` config."""
     while True:
@@ -124,8 +126,8 @@ def edit_loop(
             return ComposerResult(
                 config=working,
                 confirmed=(choice == "generate"),
-                profile=preset_slug,
-                options=preset_options,
+                architecture=arch_slug,
+                options=arch_options,
                 summary_lines=_summary_lines(working),
             )
         working = _dispatch(action, prompter, working)

@@ -1,6 +1,6 @@
 """Hub-and-spoke RAM advisory.
 
-The hub-and-spoke profile spins up one hub gateway plus *N* spokes; each
+The hub-and-spoke architecture spins up one hub gateway plus *N* spokes; each
 Ignition gateway needs ~1.5 GB to run comfortably. The advisory turns that
 math into a proportional friction signal so SEs can see the cost of a
 large demo without being silently blocked when they really do want it:

@@ -1,15 +1,13 @@
-"""Phase 6 acceptance tests: architecture profiles + wizard + advisory.
+"""Acceptance tests: system architectures + wizard + advisory.
 
-Validation criteria from 03-plan.md Phase 6:
+Validation criteria:
 
-1. ``ignition-stack init demo --profile scaleout`` emits two networked
+1. ``ignition-stack init demo --arch scale-out`` emits two networked
    gateways (frontend + backend) + a DB; gateway-network link present.
-2. ``--profile hub-and-spoke --spokes 3`` emits 1 hub + 3 spoke gateways;
+2. ``--arch hub-and-spoke --spokes 3`` emits 1 hub + 3 spoke gateways;
    ``--spokes 12`` without ``--force`` exits non-zero with the red-tier
    message; with ``--force`` it proceeds.
-3. Wizard for ``mcp-n8n`` produces an n8n service + ``modules/dropin/``
-   dir + a POST-SETUP entry for the EA-gated MCP module; per-role edition
-   yields IGNITION_EDITION=edge on the chosen role only.
+3. Per-role edition yields IGNITION_EDITION=edge on the chosen role only.
 4. Reverse-proxy prompt: "I already have one" emits a plain host-port
    mapping; "install Traefik" emits the ia-eknorr/traefik-reverse-proxy
    setup at the chosen location.
@@ -28,23 +26,23 @@ import pytest
 from ruamel.yaml import YAML
 from typer.testing import CliRunner
 
+from ignition_stack.architectures import (
+    ArchitectureError,
+    ArchOptions,
+    build_architecture,
+    list_architectures,
+    spoke_advisory,
+)
 from ignition_stack.catalog.builtins import default_builtin_catalog, jdbc_driver_for
 from ignition_stack.catalog.loader import load_catalog
 from ignition_stack.cli import app
 from ignition_stack.compose.engine import render_compose
 from ignition_stack.compose.writer import write_project
 from ignition_stack.config import GatewayConfig, ProjectConfig, ReverseProxyConfig
-from ignition_stack.profiles import (
-    ProfileError,
-    ProfileOptions,
-    build_profile,
-    list_profiles,
-    spoke_advisory,
-)
 from ignition_stack.services.resolver import resolve
 from ignition_stack.wizard import QuestionaryPrompter, walk
 
-GOLDEN_DIR = Path(__file__).parent / "golden" / "profiles"
+GOLDEN_DIR = Path(__file__).parent / "golden" / "architectures"
 
 
 # --------------------------------------------------------------------------- #
@@ -121,47 +119,47 @@ class ScriptedPrompter:
 
 
 # --------------------------------------------------------------------------- #
-# Registry: the four profile slugs exist with stable summaries
+# Registry: the system architecture slugs exist with stable summaries
 # --------------------------------------------------------------------------- #
 
 
-def test_registry_contains_all_four_profiles() -> None:
-    slugs = {p.slug for p in list_profiles()}
-    assert slugs == {"standalone", "scaleout", "hub-and-spoke", "mcp-n8n"}
+def test_registry_contains_every_architecture() -> None:
+    slugs = {a.slug for a in list_architectures()}
+    assert slugs == {"basic", "scale-out", "hub-and-spoke"}
 
 
 # --------------------------------------------------------------------------- #
-# Standalone profile
+# Basic architecture
 # --------------------------------------------------------------------------- #
 
 
-def test_standalone_resolves_to_phase2_shape() -> None:
-    config = build_profile("standalone", "demo", ProfileOptions())
-    assert config.profile == "standalone"
+def test_basic_resolves_to_phase2_shape() -> None:
+    config = build_architecture("basic", "demo", ArchOptions())
+    assert config.architecture == "basic"
     assert len(config.gateways) == 1
     assert config.gateways[0].name == "gateway"
     assert config.network_split is False
     assert config.database is not None and config.database.kind == "postgres"
 
 
-def test_standalone_with_edge_role_flips_edition() -> None:
-    config = build_profile("standalone", "demo", ProfileOptions(edge_role="gateway"))
+def test_basic_with_edge_role_flips_edition() -> None:
+    config = build_architecture("basic", "demo", ArchOptions(edge_role="gateway"))
     assert config.gateways[0].ignition_edition == "edge"
 
 
-def test_standalone_golden() -> None:
-    config = build_profile("standalone", "demo", ProfileOptions())
-    _check_or_update_golden("standalone/docker-compose.yaml", _render(config))
+def test_basic_golden() -> None:
+    config = build_architecture("basic", "demo", ArchOptions())
+    _check_or_update_golden("basic/docker-compose.yaml", _render(config))
 
 
 # --------------------------------------------------------------------------- #
-# Scaleout profile (Phase 6 validation 1)
+# Scale-out architecture (Phase 6 validation 1)
 # --------------------------------------------------------------------------- #
 
 
-def test_scaleout_emits_two_gateways_plus_database() -> None:
-    config = build_profile("scaleout", "demo", ProfileOptions())
-    assert config.profile == "scaleout"
+def test_scale_out_emits_two_gateways_plus_database() -> None:
+    config = build_architecture("scale-out", "demo", ArchOptions())
+    assert config.architecture == "scale-out"
     assert [g.name for g in config.gateways] == ["frontend", "backend"]
     assert config.gateways[0].role == "frontend"
     assert config.gateways[1].role == "backend"
@@ -169,64 +167,64 @@ def test_scaleout_emits_two_gateways_plus_database() -> None:
     assert config.database is not None and config.database.kind == "postgres"
 
 
-def test_scaleout_defaults_all_standard() -> None:
-    """The default scaleout shape runs every gateway on the standard edition;
+def test_scale_out_defaults_all_standard() -> None:
+    """The default scale-out shape runs every gateway on the standard edition;
     Edge is opt-in via --edge-role, not the default."""
-    config = build_profile("scaleout", "demo", ProfileOptions())
+    config = build_architecture("scale-out", "demo", ArchOptions())
     assert all(g.ignition_edition == "standard" for g in config.gateways)
 
 
-def test_scaleout_edge_role_none_keeps_everything_standard() -> None:
-    config = build_profile("scaleout", "demo", ProfileOptions(edge_role="none"))
+def test_scale_out_edge_role_none_keeps_everything_standard() -> None:
+    config = build_architecture("scale-out", "demo", ArchOptions(edge_role="none"))
     assert all(g.ignition_edition == "standard" for g in config.gateways)
 
 
-def test_scaleout_edge_role_frontend_flips_only_frontends() -> None:
-    config = build_profile("scaleout", "demo", ProfileOptions(frontends=2, edge_role="frontend"))
+def test_scale_out_edge_role_frontend_flips_only_frontends() -> None:
+    config = build_architecture("scale-out", "demo", ArchOptions(frontends=2, edge_role="frontend"))
     editions = {g.name: g.ignition_edition for g in config.gateways}
     assert editions == {"frontend-1": "edge", "frontend-2": "edge", "backend": "standard"}
 
 
-def test_scaleout_single_frontend_keeps_bare_name() -> None:
-    config = build_profile("scaleout", "demo", ProfileOptions())
+def test_scale_out_single_frontend_keeps_bare_name() -> None:
+    config = build_architecture("scale-out", "demo", ArchOptions())
     assert [g.name for g in config.gateways] == ["frontend", "backend"]
     assert [g.http_port for g in config.gateways] == [9088, 9089]
 
 
-def test_scaleout_multiple_frontends_are_numbered() -> None:
-    config = build_profile("scaleout", "demo", ProfileOptions(frontends=2))
+def test_scale_out_multiple_frontends_are_numbered() -> None:
+    config = build_architecture("scale-out", "demo", ArchOptions(frontends=2))
     assert [g.name for g in config.gateways] == ["frontend-1", "frontend-2", "backend"]
     assert [g.role for g in config.gateways] == ["frontend", "frontend", "backend"]
     assert [g.http_port for g in config.gateways] == [9088, 9089, 9090]
 
 
-def test_scaleout_network_split_can_be_forced_off() -> None:
-    config = build_profile("scaleout", "demo", ProfileOptions(network_split=False))
+def test_scale_out_network_split_can_be_forced_off() -> None:
+    config = build_architecture("scale-out", "demo", ArchOptions(network_split=False))
     assert config.network_split is False
 
 
 def test_hub_and_spoke_network_split_can_be_forced_on() -> None:
-    config = build_profile("hub-and-spoke", "demo", ProfileOptions(spokes=2, network_split=True))
+    config = build_architecture("hub-and-spoke", "demo", ArchOptions(spokes=2, network_split=True))
     assert config.network_split is True
 
 
-def test_scaleout_golden_and_renders_valid_yaml() -> None:
-    config = build_profile("scaleout", "demo", ProfileOptions())
+def test_scale_out_golden_and_renders_valid_yaml() -> None:
+    config = build_architecture("scale-out", "demo", ArchOptions())
     rendered = _render(config)
     parsed = _parse(rendered)
     assert "frontend" in parsed["services"]
     assert "backend" in parsed["services"]
     assert "db" in parsed["services"]
     assert set(parsed["networks"].keys()) == {"frontend", "backend"}
-    _check_or_update_golden("scaleout/docker-compose.yaml", rendered)
+    _check_or_update_golden("scale-out/docker-compose.yaml", rendered)
 
 
-def test_scaleout_emits_gateway_network_post_setup(tmp_path: Path) -> None:
-    """The scaleout gateway-network links auto-form from env (plain port 8088,
+def test_scale_out_emits_gateway_network_post_setup(tmp_path: Path) -> None:
+    """The scale-out gateway-network links auto-form from env (plain port 8088,
     Unrestricted policy), so POST-SETUP carries a *verify* step - not a manual
     UI approval - that names both ends of each link."""
-    config = build_profile("scaleout", "demo", ProfileOptions())
-    assert config.profile == "scaleout"  # resolved-config assertion
+    config = build_architecture("scale-out", "demo", ArchOptions())
+    assert config.architecture == "scale-out"  # resolved-config assertion
     write_project(config, tmp_path / "demo")
     post_setup = (tmp_path / "demo" / "POST-SETUP.md").read_text(encoding="utf-8")
     assert "gateway-network" in post_setup.lower()
@@ -240,8 +238,8 @@ def test_scaleout_emits_gateway_network_post_setup(tmp_path: Path) -> None:
 def test_hub_and_spoke_emits_gateway_network_post_setup(tmp_path: Path) -> None:
     """Hub-and-spoke now auto-forms each spoke -> hub link, so it surfaces the
     same plain-8088 verify step (it never did before: the old gate was
-    scaleout-only)."""
-    config = build_profile("hub-and-spoke", "demo", ProfileOptions(spokes=2))
+    scale-out-only)."""
+    config = build_architecture("hub-and-spoke", "demo", ArchOptions(spokes=2))
     write_project(config, tmp_path / "demo")
     post_setup = (tmp_path / "demo" / "POST-SETUP.md").read_text(encoding="utf-8")
     assert "Verify the gateway-network link" in post_setup
@@ -265,32 +263,32 @@ def test_edge_aggregation_target_rejected_edge_to_edge() -> None:
 
 
 def test_edge_aggregation_target_rejected_standard_to_edge() -> None:
-    """`scaleout --edge-role backend` makes the aggregation target (backend) Edge,
+    """`scale-out --edge-role backend` makes the aggregation target (backend) Edge,
     which is the same backwards shape (standard frontends into an Edge backend) and
     is rejected with the same guidance."""
     with pytest.raises(ValueError, match="Edge edition; aggregate into a standard"):
-        build_profile("scaleout", "demo", ProfileOptions(edge_role="backend"))
+        build_architecture("scale-out", "demo", ArchOptions(edge_role="backend"))
 
 
 def test_edge_to_standard_aggregation_allowed() -> None:
     """The normal leaf->aggregator shapes stay valid: edge spokes -> standard hub
     and standard frontend -> standard backend both build without error."""
     # edge -> standard (hub-and-spoke default: Edge spokes, standard hub)
-    build_profile("hub-and-spoke", "demo", ProfileOptions(spokes=2))
-    # standard -> standard (scaleout default)
-    build_profile("scaleout", "demo", ProfileOptions())
+    build_architecture("hub-and-spoke", "demo", ArchOptions(spokes=2))
+    # standard -> standard (scale-out default)
+    build_architecture("scale-out", "demo", ArchOptions())
 
 
-def test_scaleout_via_cli_writes_project(tmp_path: Path) -> None:
+def test_scale_out_via_cli_writes_project(tmp_path: Path) -> None:
     runner = CliRunner()
-    result = runner.invoke(app, ["init", "demo", "--profile", "scaleout", "-o", str(tmp_path)])
+    result = runner.invoke(app, ["init", "demo", "--arch", "scale-out", "-o", str(tmp_path)])
     assert result.exit_code == 0, result.stdout
     compose = (tmp_path / "demo" / "docker-compose.yaml").read_text(encoding="utf-8")
     parsed = _parse(compose)
     assert {"frontend", "backend", "db"} <= set(parsed["services"])
 
 
-def test_scaleout_cli_two_frontends_no_split(tmp_path: Path) -> None:
+def test_scale_out_cli_two_frontends_no_split(tmp_path: Path) -> None:
     """--frontends 2 --no-network-split writes two frontend services on a single
     shared network (no frontend/backend split)."""
     runner = CliRunner()
@@ -299,8 +297,8 @@ def test_scaleout_cli_two_frontends_no_split(tmp_path: Path) -> None:
         [
             "init",
             "demo",
-            "--profile",
-            "scaleout",
+            "--arch",
+            "scale-out",
             "--frontends",
             "2",
             "--no-network-split",
@@ -315,7 +313,7 @@ def test_scaleout_cli_two_frontends_no_split(tmp_path: Path) -> None:
     assert "networks" not in parsed or not parsed["networks"]
 
 
-def test_scaleout_cli_reverse_proxy_scaffold(tmp_path: Path) -> None:
+def test_scale_out_cli_reverse_proxy_scaffold(tmp_path: Path) -> None:
     """--reverse-proxy scaffold lays down the proxy README at the default path."""
     runner = CliRunner()
     result = runner.invoke(
@@ -323,8 +321,8 @@ def test_scaleout_cli_reverse_proxy_scaffold(tmp_path: Path) -> None:
         [
             "init",
             "demo",
-            "--profile",
-            "scaleout",
+            "--arch",
+            "scale-out",
             "--reverse-proxy",
             "scaffold",
             "-o",
@@ -345,8 +343,8 @@ def test_cli_reverse_proxy_external_with_network(tmp_path: Path) -> None:
         [
             "init",
             "demo",
-            "--profile",
-            "standalone",
+            "--arch",
+            "basic",
             "--reverse-proxy",
             "external",
             "--proxy-network",
@@ -366,18 +364,18 @@ def test_cli_reverse_proxy_bad_mode_exits_two(tmp_path: Path) -> None:
     runner = CliRunner()
     result = runner.invoke(
         app,
-        ["init", "demo", "--profile", "standalone", "--reverse-proxy", "traefik", "-o", str(tmp_path)],
+        ["init", "demo", "--arch", "basic", "--reverse-proxy", "traefik", "-o", str(tmp_path)],
     )
     assert result.exit_code == 2
 
 
 # --------------------------------------------------------------------------- #
-# Hub-and-spoke profile (Phase 6 validation 2)
+# Hub-and-spoke architecture (Phase 6 validation 2)
 # --------------------------------------------------------------------------- #
 
 
 def test_hub_and_spoke_three_spokes() -> None:
-    config = build_profile("hub-and-spoke", "demo", ProfileOptions(spokes=3))
+    config = build_architecture("hub-and-spoke", "demo", ArchOptions(spokes=3))
     names = [g.name for g in config.gateways]
     assert names == ["hub", "spoke-1", "spoke-2", "spoke-3"]
     # Hub stays standard; spokes default to Edge.
@@ -386,12 +384,12 @@ def test_hub_and_spoke_three_spokes() -> None:
 
 
 def test_hub_and_spoke_red_tier_without_force_raises() -> None:
-    with pytest.raises(ProfileError):
-        build_profile("hub-and-spoke", "demo", ProfileOptions(spokes=12))
+    with pytest.raises(ArchitectureError):
+        build_architecture("hub-and-spoke", "demo", ArchOptions(spokes=12))
 
 
 def test_hub_and_spoke_red_tier_with_force_proceeds() -> None:
-    config = build_profile("hub-and-spoke", "demo", ProfileOptions(spokes=12, force=True))
+    config = build_architecture("hub-and-spoke", "demo", ArchOptions(spokes=12, force=True))
     assert len(config.gateways) == 13  # 1 hub + 12 spokes
 
 
@@ -402,7 +400,7 @@ def test_hub_and_spoke_cli_spokes_3(tmp_path: Path) -> None:
         [
             "init",
             "demo",
-            "--profile",
+            "--arch",
             "hub-and-spoke",
             "--spokes",
             "3",
@@ -425,7 +423,7 @@ def test_hub_and_spoke_cli_red_tier_exits_non_zero(tmp_path: Path) -> None:
         [
             "init",
             "demo",
-            "--profile",
+            "--arch",
             "hub-and-spoke",
             "--spokes",
             "12",
@@ -445,7 +443,7 @@ def test_hub_and_spoke_cli_red_tier_with_force_proceeds(tmp_path: Path) -> None:
         [
             "init",
             "demo",
-            "--profile",
+            "--arch",
             "hub-and-spoke",
             "--spokes",
             "12",
@@ -458,7 +456,7 @@ def test_hub_and_spoke_cli_red_tier_with_force_proceeds(tmp_path: Path) -> None:
 
 
 def test_hub_and_spoke_3_spokes_golden() -> None:
-    config = build_profile("hub-and-spoke", "demo", ProfileOptions(spokes=3))
+    config = build_architecture("hub-and-spoke", "demo", ArchOptions(spokes=3))
     _check_or_update_golden("hub-and-spoke/docker-compose.yaml", _render(config))
 
 
@@ -497,66 +495,15 @@ def test_advisory_rejects_negative_spoke_count() -> None:
 
 
 # --------------------------------------------------------------------------- #
-# mcp-n8n profile (Phase 6 validation 3)
+# Per-role edition
 # --------------------------------------------------------------------------- #
-
-
-def test_mcp_n8n_resolved_config_includes_n8n_and_dropin() -> None:
-    config = build_profile("mcp-n8n", "demo", ProfileOptions())
-    assert config.profile == "mcp-n8n"
-    assert "n8n" in config.services
-    assert config.mcp_dropin is True
-
-
-def test_mcp_n8n_writer_emits_dropin_and_post_setup(tmp_path: Path) -> None:
-    config = build_profile("mcp-n8n", "demo", ProfileOptions())
-    write_project(config, tmp_path / "demo")
-    dropin_readme = tmp_path / "demo" / "modules" / "dropin" / "README.md"
-    post_setup = tmp_path / "demo" / "POST-SETUP.md"
-    assert dropin_readme.is_file()
-    assert "MCP" in dropin_readme.read_text(encoding="utf-8")
-    assert post_setup.is_file()
-    body = post_setup.read_text(encoding="utf-8")
-    assert "MCP" in body
-    assert "EA" in body or "early-access" in body.lower() or "Early-Access" in body
-
-
-def test_mcp_n8n_wizard_flow_writes_expected_project(tmp_path: Path) -> None:
-    """Validation: wizard for mcp-n8n produces n8n + dropin + POST-SETUP entry."""
-    # Scripted answers in wizard order: track -> profile -> db -> edge_role ->
-    # iiot -> modules -> proxy -> summary action
-    prompter = ScriptedPrompter(
-        [
-            "quick",  # track gate
-            "mcp-n8n",  # profile
-            "postgres",  # database
-            "none",  # edge_role
-            False,  # wire IIoT? -> no
-            False,  # customize modules? -> accept lean default
-            "ports",  # exposure: host ports
-            "generate",  # summary action
-        ]
-    )
-    outcome = walk("demo", prompter)
-    assert outcome.confirmed
-    write_project(outcome.config, tmp_path / "demo")
-    assert (tmp_path / "demo" / "modules" / "dropin" / "README.md").is_file()
-    assert (tmp_path / "demo" / "POST-SETUP.md").is_file()
-    # n8n service rendered in the compose file.
-    compose = (tmp_path / "demo" / "docker-compose.yaml").read_text(encoding="utf-8")
-    assert "n8n:" in compose
 
 
 def test_per_role_edition_only_overrides_chosen_role() -> None:
     """Edge edition on a single role does not flip the others."""
-    config = build_profile("scaleout", "demo", ProfileOptions(edge_role="frontend"))
+    config = build_architecture("scale-out", "demo", ArchOptions(edge_role="frontend"))
     editions = {g.role: g.ignition_edition for g in config.gateways}
     assert editions == {"frontend": "edge", "backend": "standard"}
-
-
-def test_mcp_n8n_golden() -> None:
-    config = build_profile("mcp-n8n", "demo", ProfileOptions())
-    _check_or_update_golden("mcp-n8n/docker-compose.yaml", _render(config))
 
 
 # --------------------------------------------------------------------------- #
@@ -566,7 +513,7 @@ def test_mcp_n8n_golden() -> None:
 
 def test_host_ports_emit_plain_mapping(tmp_path: Path) -> None:
     """No reverse_proxy -> plain host:container mapping, no labels, no proxy net."""
-    config = build_profile("standalone", "demo", ProfileOptions(reverse_proxy=None))
+    config = build_architecture("basic", "demo", ArchOptions(reverse_proxy=None))
     write_project(config, tmp_path / "demo")
     compose = (tmp_path / "demo" / "docker-compose.yaml").read_text(encoding="utf-8")
     parsed = _parse(compose)
@@ -580,10 +527,10 @@ def test_host_ports_emit_plain_mapping(tmp_path: Path) -> None:
 def test_external_proxy_emits_labels_and_drops_host_port(tmp_path: Path) -> None:
     """External mode -> Traefik labels, proxy network joined, host port dropped,
     and NO scaffold README (the proxy already exists)."""
-    config = build_profile(
-        "standalone",
+    config = build_architecture(
+        "basic",
         "demo",
-        ProfileOptions(reverse_proxy=ReverseProxyConfig(mode="external", network="proxy")),
+        ArchOptions(reverse_proxy=ReverseProxyConfig(mode="external", network="proxy")),
     )
     write_project(config, tmp_path / "demo")
     compose = (tmp_path / "demo" / "docker-compose.yaml").read_text(encoding="utf-8")
@@ -609,10 +556,10 @@ def test_external_proxy_emits_labels_and_drops_host_port(tmp_path: Path) -> None
 
 def test_external_proxy_custom_network_name(tmp_path: Path) -> None:
     """A non-default network name flows into both the join and the declaration."""
-    config = build_profile(
-        "standalone",
+    config = build_architecture(
+        "basic",
         "demo",
-        ProfileOptions(reverse_proxy=ReverseProxyConfig(mode="external", network="edge-net")),
+        ArchOptions(reverse_proxy=ReverseProxyConfig(mode="external", network="edge-net")),
     )
     parsed = _parse(_render(config))
     assert "edge-net" in parsed["services"]["gateway"]["networks"]
@@ -621,10 +568,10 @@ def test_external_proxy_custom_network_name(tmp_path: Path) -> None:
 
 def test_multi_gateway_proxy_routes_are_project_scoped(tmp_path: Path) -> None:
     """Each gateway in a multi-gateway stack gets a project-scoped router host."""
-    config = build_profile(
-        "scaleout",
+    config = build_architecture(
+        "scale-out",
         "demo",
-        ProfileOptions(reverse_proxy=ReverseProxyConfig(mode="external", network="proxy")),
+        ArchOptions(reverse_proxy=ReverseProxyConfig(mode="external", network="proxy")),
     )
     parsed = _parse(_render(config))
     fe_labels = parsed["services"]["frontend"]["labels"]
@@ -635,10 +582,10 @@ def test_multi_gateway_proxy_routes_are_project_scoped(tmp_path: Path) -> None:
 
 def test_scaffold_proxy_writes_readme_and_joins_network(tmp_path: Path) -> None:
     """Scaffold mode -> README at chosen path AND the gateway joins the network."""
-    config = build_profile(
-        "standalone",
+    config = build_architecture(
+        "basic",
         "demo",
-        ProfileOptions(reverse_proxy=ReverseProxyConfig(mode="scaffold", network="proxy", path="infra/proxy")),
+        ArchOptions(reverse_proxy=ReverseProxyConfig(mode="scaffold", network="proxy", path="infra/proxy")),
     )
     write_project(config, tmp_path / "demo")
     readme = tmp_path / "demo" / "infra" / "proxy" / "README.md"
@@ -656,8 +603,7 @@ def test_wizard_proxy_joins_detected_network(monkeypatch) -> None:
     monkeypatch.setattr("ignition_stack.wizard._detect_proxy_network", lambda: ["bridge", "proxy"])
     prompter = ScriptedPrompter(
         [
-            "quick",  # track
-            "standalone",  # profile
+            "basic",  # architecture
             "postgres",  # database
             "none",  # edge_role
             False,  # redundancy
@@ -679,8 +625,7 @@ def test_wizard_proxy_names_network_when_undetected(monkeypatch) -> None:
     monkeypatch.setattr("ignition_stack.wizard._detect_proxy_network", lambda: [])
     prompter = ScriptedPrompter(
         [
-            "quick",
-            "standalone",
+            "basic",
             "postgres",
             "none",
             False,
@@ -702,8 +647,7 @@ def test_wizard_proxy_scaffold_branch(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setattr("ignition_stack.wizard._detect_proxy_network", lambda: [])
     prompter = ScriptedPrompter(
         [
-            "quick",
-            "standalone",
+            "basic",
             "postgres",
             "none",
             False,
@@ -731,8 +675,7 @@ def test_wizard_host_ports_skip_detection(monkeypatch) -> None:
     monkeypatch.setattr("ignition_stack.wizard._detect_proxy_network", _boom)
     prompter = ScriptedPrompter(
         [
-            "quick",
-            "standalone",
+            "basic",
             "postgres",
             "none",
             False,
@@ -754,8 +697,7 @@ def test_wizard_host_ports_skip_detection(monkeypatch) -> None:
 def test_wizard_yellow_tier_confirmed_keeps_spoke_count() -> None:
     prompter = ScriptedPrompter(
         [
-            "quick",  # track gate
-            "hub-and-spoke",  # profile
+            "hub-and-spoke",  # architecture
             6,  # spokes (yellow tier)
             "postgres",  # database
             "spoke",  # edge_role
@@ -777,7 +719,6 @@ def test_wizard_yellow_tier_confirmed_keeps_spoke_count() -> None:
 def test_wizard_yellow_tier_declined_falls_back_to_4_spokes() -> None:
     prompter = ScriptedPrompter(
         [
-            "quick",  # track gate
             "hub-and-spoke",
             6,  # yellow tier
             "postgres",
@@ -800,7 +741,6 @@ def test_wizard_yellow_tier_declined_falls_back_to_4_spokes() -> None:
 def test_wizard_red_tier_confirmed_sets_force() -> None:
     prompter = ScriptedPrompter(
         [
-            "quick",  # track gate
             "hub-and-spoke",
             12,  # red tier
             "postgres",
@@ -823,7 +763,6 @@ def test_wizard_red_tier_confirmed_sets_force() -> None:
 def test_wizard_red_tier_declined_falls_back() -> None:
     prompter = ScriptedPrompter(
         [
-            "quick",  # track gate
             "hub-and-spoke",
             12,
             "postgres",
@@ -843,13 +782,12 @@ def test_wizard_red_tier_declined_falls_back() -> None:
     assert len(outcome.config.gateways) == 5
 
 
-def test_wizard_scaleout_frontends_and_network_split() -> None:
+def test_wizard_scale_out_frontends_and_network_split() -> None:
     """Scaleout wizard: frontend count + network-split confirm flow through to
     the resolved config."""
     prompter = ScriptedPrompter(
         [
-            "quick",  # track gate
-            "scaleout",  # profile
+            "scale-out",  # architecture
             2,  # frontend count
             "postgres",  # database
             "none",  # edge_role
@@ -869,11 +807,10 @@ def test_wizard_scaleout_frontends_and_network_split() -> None:
     assert outcome.config.network_split is True
 
 
-def test_wizard_scaleout_network_split_declined() -> None:
+def test_wizard_scale_out_network_split_declined() -> None:
     prompter = ScriptedPrompter(
         [
-            "quick",  # track gate
-            "scaleout",
+            "scale-out",
             1,  # single frontend
             "postgres",
             "none",
@@ -893,8 +830,7 @@ def test_wizard_scaleout_network_split_declined() -> None:
 def test_wizard_summary_decline_marks_unconfirmed() -> None:
     prompter = ScriptedPrompter(
         [
-            "quick",  # track gate
-            "standalone",
+            "basic",
             "postgres",
             "none",
             False,  # redundancy
@@ -933,8 +869,7 @@ def test_wizard_modules_decline_applies_lean_default() -> None:
     the path everyone takes."""
     prompter = ScriptedPrompter(
         [
-            "quick",  # track gate
-            "standalone",  # profile
+            "basic",  # architecture
             "postgres",  # database
             "none",  # edge_role
             False,  # redundancy
@@ -968,8 +903,7 @@ def test_wizard_modules_jdbc_driver_follows_database() -> None:
     Postgres one - the driver tracks the database, not a static default."""
     prompter = ScriptedPrompter(
         [
-            "quick",  # track gate
-            "standalone",
+            "basic",
             "mariadb",  # database -> MariaDB JDBC driver
             "none",
             False,  # redundancy
@@ -990,8 +924,7 @@ def test_wizard_modules_customize_inverts_enabled_selection() -> None:
     inverse as disable_builtins, and the choice flows to every gateway."""
     prompter = ScriptedPrompter(
         [
-            "quick",  # track gate
-            "scaleout",  # profile
+            "scale-out",  # architecture
             1,  # frontend count
             "postgres",  # database
             "none",  # edge_role
@@ -1022,8 +955,7 @@ def test_wizard_modules_no_database_enables_no_jdbc_driver() -> None:
     up disabled."""
     prompter = ScriptedPrompter(
         [
-            "quick",  # track gate
-            "standalone",
+            "basic",
             "none",  # database -> None, no JDBC driver
             "none",  # edge_role
             False,  # redundancy
@@ -1043,14 +975,13 @@ def test_wizard_modules_no_database_enables_no_jdbc_driver() -> None:
 # --------------------------------------------------------------------------- #
 
 
-def test_wizard_quick_track_matches_profile_build_exactly() -> None:
+def test_wizard_matches_architecture_build_exactly() -> None:
     """For the same answers, the quick track yields exactly the config the
-    non-interactive profile path builds: the track gate and the new prompts
+    non-interactive architecture path builds: the new prompts
     (IIoT declined) change nothing about the produced object."""
     prompter = ScriptedPrompter(
         [
-            "quick",  # track gate
-            "standalone",
+            "basic",
             "postgres",
             "none",  # edge_role
             False,  # redundancy
@@ -1062,7 +993,7 @@ def test_wizard_quick_track_matches_profile_build_exactly() -> None:
     )
     outcome = walk("demo", prompter)
     assert outcome.confirmed
-    expected = build_profile("standalone", "demo", ProfileOptions(disable_builtins=outcome.options.disable_builtins))
+    expected = build_architecture("basic", "demo", ArchOptions(disable_builtins=outcome.options.disable_builtins))
     assert outcome.config.model_dump(mode="json") == expected.model_dump(mode="json")
 
 
@@ -1075,8 +1006,7 @@ def test_wizard_iiot_declined_leaves_no_broker() -> None:
     """Declining the IIoT confirm wires no broker and no mqtt attachments."""
     prompter = ScriptedPrompter(
         [
-            "quick",  # track gate
-            "standalone",
+            "basic",
             "postgres",
             "none",  # edge_role
             False,  # redundancy
@@ -1097,8 +1027,7 @@ def test_wizard_iiot_accepted_default_chariot_wired_by_role() -> None:
     edge-side role and Engine to the central role (apply_iiot semantics)."""
     prompter = ScriptedPrompter(
         [
-            "quick",  # track gate
-            "scaleout",
+            "scale-out",
             1,  # frontend count
             "postgres",
             "none",  # edge_role
@@ -1128,7 +1057,7 @@ def test_wizard_iiot_accepted_default_chariot_wired_by_role() -> None:
 # Regression: `select()` must hand questionary the choice *value* (the slug)
 # as `default`, not its rendered label. Questionary validates `default`
 # against choice values and raises ValueError otherwise — which crashed
-# `init` at the very first profile prompt. The ScriptedPrompter used above
+# `init` at the very first architecture prompt. The ScriptedPrompter used above
 # bypasses this adapter, so it needs its own coverage.
 #
 # These spy on questionary's entry points rather than letting prompt_toolkit
@@ -1155,7 +1084,7 @@ def test_questionary_select_default_resolves_to_choice_value(monkeypatch) -> Non
 
     # Same (value, label) shape the wizard builds: a padded label whose text
     # is *not* a valid questionary default.
-    choices = [(p.slug, f"{p.slug:<14} - {p.summary}") for p in list_profiles()]
+    choices = [(p.slug, f"{p.slug:<14} - {p.summary}") for p in list_architectures()]
     captured: dict = {}
 
     def spy_select(message, *, choices, default=None, **kwargs):
@@ -1165,13 +1094,13 @@ def test_questionary_select_default_resolves_to_choice_value(monkeypatch) -> Non
 
     monkeypatch.setattr(questionary, "select", spy_select)
 
-    answer = QuestionaryPrompter().select("Architecture profile?", choices, default="standalone")
+    answer = QuestionaryPrompter().select("Architecture?", choices, default="basic")
 
     # questionary's contract: `default` must be a choice value (or None). The
     # bug passed the rendered label, which is not in this set.
     values = [c.value for c in captured["choices"]]
     assert captured["default"] in values
-    assert captured["default"] == "standalone"
+    assert captured["default"] == "basic"
     assert answer == values[0]  # round-trips the selected slug
 
 
@@ -1180,18 +1109,18 @@ def test_questionary_select_drops_unknown_default(monkeypatch) -> None:
     being passed through — questionary would reject an unknown default."""
     import questionary
 
-    choices = [(p.slug, p.summary) for p in list_profiles()]
+    choices = [(p.slug, p.summary) for p in list_architectures()]
     captured: dict = {}
 
     def spy_select(message, *, choices, default=None, **kwargs):
         captured["default"] = default
-        return _StubQuestion("scaleout")
+        return _StubQuestion("scale-out")
 
     monkeypatch.setattr(questionary, "select", spy_select)
 
-    answer = QuestionaryPrompter().select("Profile?", choices, default="does-not-exist")
+    answer = QuestionaryPrompter().select("Architecture?", choices, default="does-not-exist")
     assert captured["default"] is None
-    assert answer == "scaleout"
+    assert answer == "scale-out"
 
 
 def test_questionary_checkbox_forwards_checked_flag(monkeypatch) -> None:

@@ -11,23 +11,23 @@ from __future__ import annotations
 import pytest
 
 from ignition_stack.completion import (
+    complete_architecture,
     complete_edge_role,
     complete_module_name,
-    complete_profile,
 )
 
 
-def test_complete_profile_lists_every_slug_with_summary() -> None:
-    results = complete_profile("")
+def test_complete_architecture_lists_every_slug_with_summary() -> None:
+    results = complete_architecture("")
     slugs = [slug for slug, _ in results]
-    assert set(slugs) == {"standalone", "scaleout", "hub-and-spoke", "mcp-n8n"}
-    # Each candidate carries the profile's one-line summary for the menu.
+    assert set(slugs) == {"basic", "scale-out", "hub-and-spoke"}
+    # Each candidate carries the architecture's one-line summary for the menu.
     assert all(summary for _, summary in results)
 
 
-def test_complete_profile_filters_on_prefix() -> None:
-    assert [slug for slug, _ in complete_profile("s")] == ["scaleout", "standalone"]
-    assert complete_profile("zzz") == []
+def test_complete_architecture_filters_on_prefix() -> None:
+    assert [slug for slug, _ in complete_architecture("s")] == ["scale-out"]
+    assert complete_architecture("zzz") == []
 
 
 def test_complete_edge_role_includes_none_sentinel_and_filters() -> None:

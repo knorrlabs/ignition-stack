@@ -6,7 +6,7 @@ are tuned so a bare ``ProjectConfig(name="demo")`` still resolves to exactly
 the Phase 2 walking skeleton (one standalone gateway + Postgres on a single
 bridge network).
 
-Phases 5-6 extend this with the service catalog and profile-class shaping.
+Phases 5-6 extend this with the service catalog and architecture-class shaping.
 """
 
 from __future__ import annotations
@@ -214,7 +214,7 @@ class GatewayConfig(BaseModel):
     role: str | None = Field(
         default=None,
         description=(
-            "Optional role tag used by the network-split logic and profile "
+            "Optional role tag used by the network-split logic and architecture "
             "classes (e.g. 'frontend', 'backend', 'hub', 'spoke'). When "
             "network_split is on the role decides which network the "
             "gateway joins."
@@ -272,8 +272,8 @@ class GatewayConfig(BaseModel):
         default_factory=list,
         description=(
             "Service names of peer gateways this one opens an outgoing Gateway "
-            "Network connection to. Multi-gateway profiles set this to auto-form "
-            "the GAN with no UI approval (scaleout: each frontend -> backend; "
+            "Network connection to. Multi-gateway architectures set this to auto-form "
+            "the GAN with no UI approval (scale-out: each frontend -> backend; "
             "hub-and-spoke: each spoke -> hub). The compose engine renders one "
             "GATEWAY_NETWORK_<i>_HOST/PORT/ENABLESSL trio per entry on the plain, "
             "non-SSL port 8088, and opens an Unrestricted incoming policy on every "
@@ -506,16 +506,16 @@ class ProjectConfig(BaseModel):
     )
     mcp_dropin: bool = Field(
         default=False,
-        description=("True when the project should scaffold modules/dropin/ for the EA-gated MCP module. Set by the mcp-n8n profile."),
+        description=("True when the project should scaffold modules/dropin/ for the EA-gated MCP module. Set when a config carries the MCP drop-in."),
     )
-    profile: str | None = Field(
+    architecture: str | None = Field(
         default=None,
         description=(
-            "Slug of the architecture profile that produced this config "
-            "('standalone', 'scaleout', 'hub-and-spoke', 'mcp-n8n'). "
+            "Slug of the system architecture that produced this config "
+            "('basic', 'scale-out', 'hub-and-spoke'). "
             "Informational - the compose engine reads from the resolved "
             "fields, not this slug - but lets generated files (header "
-            "comment, lifecycle records) name the profile they came from."
+            "comment, lifecycle records) name the architecture they came from."
         ),
     )
 

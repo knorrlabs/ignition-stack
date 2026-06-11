@@ -1,19 +1,19 @@
-"""switch-profile carries the service registry across a reshape (issue #43 p6).
+"""switch-arch carries the service registry across a reshape.
 
 These tests pin the Phase-6 carry semantics:
 
 - IIoT intent (broker + Transmission/Engine roles) is recovered into
-  ``ProfileOptions`` and re-applied by ``apply_iiot`` in the new topology, so the
+  ``ArchOptions`` and re-applied by ``apply_iiot`` in the new topology, so the
   pipeline re-maps onto the new roles (spokes' Transmission -> frontends';
   hub's Engine -> backend's).
-- Richer registry shapes ``ProfileOptions`` can't express - custom instance ids,
+- Richer registry shapes ``ArchOptions`` can't express - custom instance ids,
   per-instance overrides, partial / role-specific attachments, a second database
   - are re-grafted onto the rebuilt config by role, with attachments the new
   topology can't host dropped and a printed advisory.
 - Re-grafting respects the new topology's invariants (Edge never_on_edge,
   one database per gateway): a violating attachment is dropped, not raised.
 
-The driver is the real ``switch-profile`` CLI command via ``CliRunner`` so the
+The driver is the real ``switch-arch`` CLI command via ``CliRunner`` so the
 advisory output is captured exactly as a user would see it.
 """
 
@@ -24,10 +24,10 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
+from ignition_stack.architectures import ArchOptions, build_architecture
 from ignition_stack.cli import app
 from ignition_stack.config import load_config
 from ignition_stack.lifecycle import read_record
-from ignition_stack.profiles import ProfileOptions, build_profile
 from ignition_stack.services.resolver import resolve
 
 
@@ -49,26 +49,26 @@ def _init_from_file(runner: CliRunner, tmp_path: Path, yaml_text: str, name: str
 
 
 # --------------------------------------------------------------------------- #
-# IIoT carry: hub-and-spoke -> scaleout                                        #
+# IIoT carry: hub-and-spoke -> scale-out                                        #
 # --------------------------------------------------------------------------- #
 
 
-def test_iiot_carries_hub_and_spoke_to_scaleout(runner: CliRunner, tmp_path: Path) -> None:
+def test_iiot_carries_hub_and_spoke_to_scale_out(runner: CliRunner, tmp_path: Path) -> None:
     """spokes' Transmission becomes frontends'; hub's Engine becomes backend's.
 
-    A hub-and-spoke + IIoT stack reshaped to scaleout must keep the pipeline:
+    A hub-and-spoke + IIoT stack reshaped to scale-out must keep the pipeline:
     the broker re-appears, the edge-side role (now `frontend`) carries
     mqtt-transmission, and the central role (now `backend`) carries mqtt-engine -
     re-mapped by ``apply_iiot`` from the recovered iiot intent, not re-grafted.
     """
     result = runner.invoke(
         app,
-        ["init", "demo", "--profile", "hub-and-spoke", "--spokes", "2", "--iiot", "-o", str(tmp_path)],
+        ["init", "demo", "--arch", "hub-and-spoke", "--spokes", "2", "--iiot", "-o", str(tmp_path)],
     )
     assert result.exit_code == 0, result.stdout
     project = tmp_path / "demo"
 
-    result = runner.invoke(app, ["switch-profile", "scaleout", "-C", str(project)])
+    result = runner.invoke(app, ["switch-arch", "scale-out", "-C", str(project)])
     assert result.exit_code == 0, result.stdout
 
     record = read_record(project)
@@ -91,9 +91,9 @@ def test_iiot_carries_cleanly_without_advisory(runner: CliRunner, tmp_path: Path
     """A clean IIoT carry prints no drop advisory."""
     runner.invoke(
         app,
-        ["init", "demo", "--profile", "hub-and-spoke", "--spokes", "2", "--iiot", "-o", str(tmp_path)],
+        ["init", "demo", "--arch", "hub-and-spoke", "--spokes", "2", "--iiot", "-o", str(tmp_path)],
     )
-    result = runner.invoke(app, ["switch-profile", "scaleout", "-C", str(tmp_path / "demo")])
+    result = runner.invoke(app, ["switch-arch", "scale-out", "-C", str(tmp_path / "demo")])
     assert result.exit_code == 0, result.stdout
     assert "note" not in result.stdout
 
@@ -131,14 +131,14 @@ service_instances:
 def test_custom_id_instance_carries_with_overrides(runner: CliRunner, tmp_path: Path) -> None:
     """A custom-id Mongo (image override) re-grafts onto the central role.
 
-    `ts-store` (id != slug, image override) can't ride ProfileOptions, so it is
-    re-grafted: switching scaleout->hub-and-spoke maps the backend's attachment
+    `ts-store` (id != slug, image override) can't ride ArchOptions, so it is
+    re-grafted: switching scale-out->hub-and-spoke maps the backend's attachment
     onto the hub (backend<->hub counterpart) and preserves the custom id +
     image. Keycloak rides `services` and lands on every gateway.
     """
     project = _init_from_file(runner, tmp_path, _CUSTOM_DB_YAML, "plant")
 
-    result = runner.invoke(app, ["switch-profile", "hub-and-spoke", "-C", str(project)])
+    result = runner.invoke(app, ["switch-arch", "hub-and-spoke", "-C", str(project)])
     assert result.exit_code == 0, result.stdout
 
     record = read_record(project)
@@ -152,10 +152,10 @@ def test_custom_id_instance_carries_with_overrides(runner: CliRunner, tmp_path: 
             assert ("ts-store", "consumer") not in _attachments(gw)
 
 
-def test_custom_id_instance_carries_to_standalone(runner: CliRunner, tmp_path: Path) -> None:
-    """Collapsing to standalone lands the central-role store on the one gateway."""
+def test_custom_id_instance_carries_to_basic(runner: CliRunner, tmp_path: Path) -> None:
+    """Collapsing to basic lands the central-role store on the one gateway."""
     project = _init_from_file(runner, tmp_path, _CUSTOM_DB_YAML, "plant")
-    result = runner.invoke(app, ["switch-profile", "standalone", "-C", str(project)])
+    result = runner.invoke(app, ["switch-arch", "basic", "-C", str(project)])
     assert result.exit_code == 0, result.stdout
     record = read_record(project)
     assert [gw.name for gw in record.gateways] == ["gateway"]
@@ -205,19 +205,19 @@ def test_edge_invariant_drops_database_with_advisory(tmp_path: Path) -> None:
     switch CLI would only reach if the source already ran Edge. The custom Mongo
     `store` maps onto every gateway of the hub-and-spoke target, where two new
     invariants bar it: it must not run on the Edge `spoke-*` gateways, and the
-    `hub` already holds the profile's default Postgres (one DB per gateway). Both
+    `hub` already holds the architecture's default Postgres (one DB per gateway). Both
     drops fire with `[yellow]note[/yellow]` advisories naming the reason, and the
     result resolves cleanly instead of raising.
     """
-    from ignition_stack.profiles.carry import carry_registry
+    from ignition_stack.architectures.carry import carry_registry
 
     arch = tmp_path / "arch.yml"
     arch.write_text(_DUAL_STORE_YAML, encoding="utf-8")
     old = resolve(load_config(arch))
 
-    # Resolve first (as switch-profile does) so the profile's default database is
+    # Resolve first (as switch-arch does) so the architecture's default database is
     # already lowered into attachments before the carry runs.
-    new = resolve(build_profile("hub-and-spoke", "plant", ProfileOptions(spokes=2, edge_role="spoke")))
+    new = resolve(build_architecture("hub-and-spoke", "plant", ArchOptions(spokes=2, edge_role="spoke")))
     recorder = _Recorder()
     new = carry_registry(new, old, recorder)
     new = resolve(new)  # must not raise
@@ -237,17 +237,17 @@ def test_edge_invariant_drops_database_with_advisory(tmp_path: Path) -> None:
 def test_no_counterpart_drop_prints_advisory(tmp_path: Path) -> None:
     """An attachment whose source gateway has no target counterpart is dropped.
 
-    A role-less standalone gateway holding a custom store, reshaped to a topology
+    A role-less basic gateway holding a custom store, reshaped to a topology
     with only edge-side roles... is hard to construct, so this exercises the
     branch directly: an attachment on a role the target lacks entirely.
     """
+    from ignition_stack.architectures.carry import carry_registry
     from ignition_stack.config.schema import (
         GatewayConfig,
         ProjectConfig,
         ServiceAttachment,
         ServiceInstance,
     )
-    from ignition_stack.profiles.carry import carry_registry
 
     # Old: a gateway with an unusual role 'oddball' holding a custom store.
     old = resolve(
@@ -266,7 +266,7 @@ def test_no_counterpart_drop_prints_advisory(tmp_path: Path) -> None:
     )
     # New: hub-and-spoke - 'oddball' is neither central nor edge-side, so no
     # counterpart gateway exists and the store attachment is dropped.
-    new = resolve(build_profile("hub-and-spoke", "plant", ProfileOptions(spokes=2, edge_role="spoke")))
+    new = resolve(build_architecture("hub-and-spoke", "plant", ArchOptions(spokes=2, edge_role="spoke")))
     recorder = _Recorder()
     new = carry_registry(new, old, recorder)
     new = resolve(new)
@@ -286,7 +286,7 @@ def test_reshape_result_is_valid_after_carry(runner: CliRunner, tmp_path: Path) 
     the carry never emits an invalid registry.
     """
     project = _init_from_file(runner, tmp_path, _CUSTOM_DB_YAML, "plant")
-    runner.invoke(app, ["switch-profile", "hub-and-spoke", "-C", str(project)])
+    runner.invoke(app, ["switch-arch", "hub-and-spoke", "-C", str(project)])
     record = read_record(project)
     once = resolve(record)
     assert once.model_dump() == resolve(once).model_dump()
@@ -300,7 +300,7 @@ def test_reshape_result_is_valid_after_carry(runner: CliRunner, tmp_path: Path) 
 def test_options_recover_iiot_intent() -> None:
     from ignition_stack.cli import _options_from_config
 
-    config = resolve(build_profile("hub-and-spoke", "demo", ProfileOptions(spokes=2, iiot=True)))
+    config = resolve(build_architecture("hub-and-spoke", "demo", ArchOptions(spokes=2, iiot=True)))
     options = _options_from_config(config)
     assert options.iiot is True
     assert options.iiot_broker == "chariot"
@@ -313,19 +313,19 @@ def test_options_recover_reverse_proxy() -> None:
     from ignition_stack.config import ReverseProxyConfig
 
     proxy = ReverseProxyConfig(mode="external", network="edge-net")
-    config = resolve(build_profile("standalone", "demo", ProfileOptions(reverse_proxy=proxy)))
+    config = resolve(build_architecture("basic", "demo", ArchOptions(reverse_proxy=proxy)))
     options = _options_from_config(config)
     assert options.reverse_proxy == proxy
 
 
-def test_reverse_proxy_carries_across_switch_profile(runner: CliRunner, tmp_path: Path) -> None:
+def test_reverse_proxy_carries_across_switch_arch(runner: CliRunner, tmp_path: Path) -> None:
     """A reshape preserves the proxy mode + network on the new topology."""
     runner.invoke(
         app,
-        ["init", "demo", "--profile", "standalone", "--reverse-proxy", "external", "--proxy-network", "edge-net", "-o", str(tmp_path)],
+        ["init", "demo", "--arch", "basic", "--reverse-proxy", "external", "--proxy-network", "edge-net", "-o", str(tmp_path)],
     )
     project = tmp_path / "demo"
-    result = runner.invoke(app, ["switch-profile", "scaleout", "-C", str(project)])
+    result = runner.invoke(app, ["switch-arch", "scale-out", "-C", str(project)])
     assert result.exit_code == 0, result.stdout
     config = read_record(project)
     assert config.reverse_proxy is not None

@@ -6,7 +6,7 @@ The matrix contract has two halves, and both are asserted here:
    and each section carries the three things a user needs to finish it by hand:
    the deep-link URL to open, the in-UI screen path to navigate to, and the
    exact ``.env`` variable name to copy.
-2. A fully-seedable stack (standalone + Postgres) states, unambiguously, that
+2. A fully-seedable stack (basic + Postgres) states, unambiguously, that
    no manual steps are required.
 """
 
@@ -14,10 +14,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from ignition_stack.architectures import ArchOptions, build_architecture
 from ignition_stack.compose import write_project
 from ignition_stack.config import ProjectConfig
 from ignition_stack.postsetup import generate_post_setup
-from ignition_stack.profiles import ProfileOptions, build_profile
 from ignition_stack.services.resolver import resolve
 
 
@@ -88,7 +88,7 @@ def test_writer_writes_post_setup_with_manual_step(tmp_path: Path) -> None:
 
 
 def test_writer_writes_no_manual_steps_for_default_stack(tmp_path: Path) -> None:
-    """A bare standalone+Postgres project still gets a POST-SETUP.md, stating none."""
+    """A bare basic+Postgres project still gets a POST-SETUP.md, stating none."""
     write_project(ProjectConfig(name="demo"), tmp_path / "demo")
     body = (tmp_path / "demo" / "POST-SETUP.md").read_text(encoding="utf-8")
     assert "no manual steps required" in body.lower()
@@ -100,8 +100,8 @@ def test_writer_writes_no_manual_steps_for_default_stack(tmp_path: Path) -> None
 # --------------------------------------------------------------------------- #
 
 
-def _iiot_post_setup(profile: str, name: str, **opts: object) -> str:
-    config = build_profile(profile, name, ProfileOptions(iiot=True, **opts))  # type: ignore[arg-type]
+def _iiot_post_setup(arch: str, name: str, **opts: object) -> str:
+    config = build_architecture(arch, name, ArchOptions(iiot=True, **opts))  # type: ignore[arg-type]
     return generate_post_setup(resolve(config))
 
 
@@ -131,16 +131,16 @@ def test_iiot_hub_and_spoke_names_engine_hub_and_transmission_spokes() -> None:
     assert "chariot-trial" in body
 
 
-def test_iiot_scaleout_engine_on_backend_transmission_on_frontends() -> None:
-    body = _iiot_post_setup("scaleout", "edge", frontends=2)
+def test_iiot_scale_out_engine_on_backend_transmission_on_frontends() -> None:
+    body = _iiot_post_setup("scale-out", "edge", frontends=2)
     assert "Engine on backend" in body
     for front in ("frontend-1", "frontend-2"):
         assert f"Transmission on {front}" in body
         assert f"Edge Node ID `{front}`" in body
 
 
-def test_iiot_standalone_single_gateway_runs_both_roles() -> None:
-    body = _iiot_post_setup("standalone", "solo")
+def test_iiot_basic_single_gateway_runs_both_roles() -> None:
+    body = _iiot_post_setup("basic", "solo")
     assert "Engine on gateway" in body
     assert "Transmission on gateway" in body
     assert "Edge Node ID `gateway`" in body

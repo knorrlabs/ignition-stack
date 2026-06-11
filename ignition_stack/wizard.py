@@ -11,25 +11,25 @@ The UX shape borrows from Create T3 App: select -> defaults -> summary ->
 generate. Each step is one Questionary prompt; the summary screen
 recaps the resolved choices and gates the write.
 
-The first prompt is a **two-track gate** (issue #43 phase 7). *Quick* walks
-the linear profile flow below; *Custom* hands off to
-:mod:`ignition_stack.wizard_composer` for per-gateway service composition on a
-topology preset. Both tracks produce the same :class:`ProjectConfig`.
+The wizard is **architecture-first**: the very first prompt is the architecture
+select (Basic / Scale Out / Hub and Spoke, mirroring Ignition's documented
+system architectures). There is no preliminary "how do you want to build?"
+gate; the per-gateway composer is reached one way only, through the summary's
+*tweak* action.
 
-Quick-track step order:
+Step order:
 
-0. **Track** - quick (linear profile flow) or custom (composer). Default quick.
-1. **Profile** - which of the four canned shapes the user wants.
-2. **Profile-specific count** - spoke count for hub-and-spoke, frontend
-   count for scaleout (skipped for single-gateway profiles).
+1. **Architecture** - which of the system architectures the user wants.
+2. **Architecture-specific count** - spoke count for hub-and-spoke, frontend
+   count for scale-out (skipped for single-gateway architectures).
 3. **Database** - SQL flavor for the stack, or "none".
 4. **Edition per role** - which role (if any) runs Edge. The default is
-   profile-driven: all profiles now propose "none" (all standard).
-5. **Network split** - for the multi-gateway profiles (scaleout +
+   architecture-driven: basic/scale-out propose "none", hub-and-spoke "spoke".
+5. **Network split** - for the multi-gateway architectures (scale-out +
    hub-and-spoke), whether to split frontend/backend onto separate
-   networks. Defaults on for scaleout, off for hub-and-spoke.
-6. **Redundancy** - for profiles with a single workhorse role (standalone
-   gateway, scaleout backend, hub-and-spoke hub), whether to add a backup
+   networks. Defaults on for scale-out, off for hub-and-spoke.
+6. **Redundancy** - for architectures with a single workhorse role (basic
+   gateway, scale-out backend, hub-and-spoke hub), whether to add a backup
    node and form a master/backup pair. Defaults off.
 7. **IIoT** - whether to add an IIoT (MQTT/Sparkplug) pipeline. Default no;
    on "yes" a broker select defaults to chariot. Wires Cirrus Transmission to
@@ -44,7 +44,7 @@ Quick-track step order:
    detects an existing ``proxy`` Docker network and offers to join it, else asks
    for the network name or scaffolds ``ia-eknorr/traefik-reverse-proxy``.
 10. **Summary** - a three-way select: *generate* (write the project),
-    *tweak* (hand the built+resolved config to the Custom composer pre-filled),
+    *tweak* (hand the built+resolved config to the composer pre-filled),
     or *cancel* (abort).
 
 Per-gateway env-var overrides (``memory_mb`` etc.) are deferred to a future
@@ -54,7 +54,7 @@ is a non-breaking follow-up.
 Back-navigation (issue #59)
 ---------------------------
 
-The Quick track is a **step machine, steps as data**: :data:`QUICK_STEPS` is an
+The flow is a **step machine, steps as data**: :data:`WIZARD_STEPS` is an
 ordered list of :class:`Step` objects, each with a ``name``, a human ``label``
 (for the issue #60 breadcrumb), an ``applies(answers)`` predicate, and an
 ``ask(prompter, answers, allow_back)`` callable that prompts and returns the
@@ -72,7 +72,7 @@ integer default = prior value). This "replay forward, re-asking each" rule is
 deliberately the simpler of the two candidates: every later answer is
 re-confirmed rather than silently kept, so **invalidation is automatic** - an
 answer that is no longer a legal choice for the changed earlier answer (e.g. the
-edge-role after switching profile from hub-and-spoke to standalone) is dropped
+edge-role after switching architecture from hub-and-spoke to basic) is dropped
 because its step re-asks and its stale value, not being in the new choice set,
 falls back to the step's canonical default. Newly-applicable steps (a spoke
 count that only exists for hub-and-spoke) are asked; newly-inapplicable ones are
@@ -82,16 +82,16 @@ skipped and their stored answers ignored at build time.
 appended last, mapped to :data:`BACK`) and on **confirm** prompts (rendered as a
 Yes/No/Back select when ``allow_back`` is set). **Integer** and **text** prompts
 have no Back affordance in v1: the only integer steps are the spoke/frontend
-counts, which sit directly after the profile select, and text prompts appear
-only as reverse-proxy sub-questions. You can still step *into* those steps from a
-later select (their prior value replays as the default); you just cannot
-*initiate* a back from them. The track gate is step 0's predecessor: backing off
-the profile step returns to the "How do you want to build?" prompt. The summary
-select also carries a Back option, returning the user to the last question
-instead of forcing a cancel. The :data:`BACK` sentinel keeps the ``Prompter``
-protocol test-mockable: ``ScriptedPrompter`` drives back-navigation by yielding
-``BACK`` in its answer script, exactly where ``QuestionaryPrompter`` would map
-the Back choice.
+counts, which sit directly after the architecture select, and text prompts
+appear only as reverse-proxy sub-questions. You can still step *into* those
+steps from a later select (their prior value replays as the default); you just
+cannot *initiate* a back from them. The architecture select is the first prompt,
+so it offers no Back affordance - there is nowhere earlier to go. The summary
+select carries a Back option, returning the user to the last question instead of
+forcing a cancel. The :data:`BACK` sentinel keeps the ``Prompter`` protocol
+test-mockable: ``ScriptedPrompter`` drives back-navigation by yielding ``BACK``
+in its answer script, exactly where ``QuestionaryPrompter`` would map the Back
+choice.
 """
 
 from __future__ import annotations
@@ -102,13 +102,13 @@ from typing import Any, Protocol
 
 from rich.console import Console
 
-from ignition_stack.config import ProjectConfig, ReverseProxyConfig, dump_config
-from ignition_stack.profiles import (
-    ProfileError,
-    ProfileOptions,
-    build_profile,
-    list_profiles,
+from ignition_stack.architectures import (
+    ArchitectureError,
+    ArchOptions,
+    build_architecture,
+    list_architectures,
 )
+from ignition_stack.config import ProjectConfig, ReverseProxyConfig, dump_config
 from ignition_stack.services.resolver import resolve
 
 console = Console()
@@ -141,11 +141,6 @@ BACK = _Back()
 # Distinct from ``None``, which is a real stored answer (e.g. database "none").
 _UNSET = object()
 
-# Track-gate values (the wizard's first prompt). Quick keeps the linear profile
-# flow; Custom hands off to the per-gateway composer.
-_TRACK_QUICK = "quick"
-_TRACK_CUSTOM = "custom"
-
 # Database options shown in the wizard, in the order they appear on screen.
 _DB_CHOICES: list[tuple[str, str]] = [
     ("postgres", "PostgreSQL"),
@@ -155,32 +150,31 @@ _DB_CHOICES: list[tuple[str, str]] = [
     ("none", "None"),
 ]
 
-# Per-profile default edge-role proposal. The wizard offers this as the
+# Per-architecture default edge-role proposal. The wizard offers this as the
 # default selection in the edition prompt; the user can override.
 _DEFAULT_EDGE_ROLE: dict[str, str] = {
-    "standalone": "none",
-    "scaleout": "none",
+    "basic": "none",
+    "scale-out": "none",
     "hub-and-spoke": "spoke",
-    "mcp-n8n": "none",
 }
 
-# Profiles that produce more than one gateway, so the frontend/backend
-# network split is a meaningful choice. Single-gateway profiles skip it.
-_MULTI_GATEWAY_PROFILES = frozenset({"scaleout", "hub-and-spoke"})
+# Architectures that produce more than one gateway, so the frontend/backend
+# network split is a meaningful choice. Single-gateway architectures skip it.
+_MULTI_GATEWAY_ARCHITECTURES = frozenset({"scale-out", "hub-and-spoke"})
 
-# Default network-split proposal per multi-gateway profile. Scaleout splits
-# (the point of the demo); hub-and-spoke stays on one shared network.
+# Default network-split proposal per multi-gateway architecture. Scale-out
+# splits (the point of the demo); hub-and-spoke stays on one shared network.
 _DEFAULT_NETWORK_SPLIT: dict[str, bool] = {
-    "scaleout": True,
+    "scale-out": True,
     "hub-and-spoke": False,
 }
 
-# The single workhorse role each profile can make redundant (master + backup).
-# Replicated tiers (frontends, spokes) are deliberately absent - they scale
-# out, they don't fail over. Profiles not listed here skip the prompt.
+# The single workhorse role each architecture can make redundant (master +
+# backup). Replicated tiers (frontends, spokes) are deliberately absent - they
+# scale out, they don't fail over. Architectures not listed here skip the prompt.
 _REDUNDANCY_ROLE: dict[str, str] = {
-    "standalone": "gateway",
-    "scaleout": "backend",
+    "basic": "gateway",
+    "scale-out": "backend",
     "hub-and-spoke": "hub",
 }
 
@@ -241,17 +235,17 @@ class WizardOutcome:
 
     config: ProjectConfig
     confirmed: bool
-    profile: str
-    options: ProfileOptions
+    architecture: str
+    options: ArchOptions
     summary_lines: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
 class Step:
-    """One node of the Quick-track step machine.
+    """One node of the wizard step machine.
 
     ``applies`` decides whether the step is shown for the current ``answers``
-    (so profile-specific steps appear/vanish as earlier answers change).
+    (so architecture-specific steps appear/vanish as earlier answers change).
     ``ask`` runs the prompt(s) and returns the step's answer, or :data:`BACK`
     to request stepping back. ``label`` is the human name the issue #60
     breadcrumb will render. The objects are pure data: the closures take the
@@ -282,37 +276,19 @@ def walk(name: str, prompter: Prompter) -> WizardOutcome:
     """Walk the decision tree and return the resolved config + summary.
 
     Pure modulo the prompter; no global state. The first prompt is the
-    two-track gate: *quick* runs the linear profile flow, *custom* hands off to
-    the per-gateway composer. Both return a :class:`WizardOutcome` whose
-    ``config`` is what the CLI writes.
-
-    The loop re-shows the track gate when the Quick track backs out of its first
-    step, so the gate behaves like step 0 of the machine without entangling the
-    Custom branch.
-    """
-    answers: dict[str, Any] = {}
-    while True:
-        track = _ask_track(prompter, default=answers.get("track", _TRACK_QUICK))
-        answers["track"] = track
-        if track == _TRACK_CUSTOM:
-            return _run_custom_track(name, prompter)
-        outcome = _run_quick_track(name, prompter, answers)
-        if outcome is BACK:
-            continue  # backed off the first profile step -> re-ask the gate
-        return outcome
-
-
-def _run_quick_track(name: str, prompter: Prompter, answers: dict[str, Any]) -> Any:
-    """Drive :data:`QUICK_STEPS`, then the summary; honour Back throughout.
+    architecture select - there is no preliminary track gate. Drive
+    :data:`WIZARD_STEPS`, then the summary, honouring Back throughout.
 
     A single cursor walks the step list. ``history`` is the stack of applicable
     step indices already answered, so a Back pops to the previous *applicable*
     step (non-applicable steps are skipped in both directions). Running off the
     end of the list is "show the summary"; Back at the summary pops to the last
-    question, Back before the first step returns :data:`BACK` so :func:`walk`
-    re-shows the track gate. Returns a :class:`WizardOutcome` on completion.
+    question. The architecture step is first, so it offers no Back affordance and
+    the cursor never runs before it. Returns a :class:`WizardOutcome` on
+    completion.
     """
-    steps = QUICK_STEPS
+    answers: dict[str, Any] = {}
+    steps = WIZARD_STEPS
     i = 0
     history: list[int] = []
     while True:
@@ -320,18 +296,16 @@ def _run_quick_track(name: str, prompter: Prompter, answers: dict[str, Any]) -> 
             result = _summary_phase(name, prompter, answers)
             if result is not BACK:
                 return result
-            if not history:
-                return BACK
             i = history.pop()
             continue
         step = steps[i]
         if not step.applies(answers):
             i += 1
             continue
-        answer = step.ask(prompter, answers, True)
+        # The first step (architecture) has no earlier prompt to return to, so it
+        # carries no Back affordance.
+        answer = step.ask(prompter, answers, bool(history))
         if answer is BACK:
-            if not history:
-                return BACK
             i = history.pop()
             continue
         answers[step.name] = answer
@@ -339,20 +313,20 @@ def _run_quick_track(name: str, prompter: Prompter, answers: dict[str, Any]) -> 
         i += 1
 
 
-def _options_from_answers(answers: Mapping[str, Any]) -> ProfileOptions:
-    """Assemble :class:`ProfileOptions` from the recorded step answers.
+def _options_from_answers(answers: Mapping[str, Any]) -> ArchOptions:
+    """Assemble :class:`ArchOptions` from the recorded step answers.
 
-    Answers for steps that no longer apply to the chosen profile are ignored
-    here (the spoke count after switching away from hub-and-spoke, etc.), which
-    is where stale-but-stored answers get dropped at build time.
+    Answers for steps that no longer apply to the chosen architecture are
+    ignored here (the spoke count after switching away from hub-and-spoke, etc.),
+    which is where stale-but-stored answers get dropped at build time.
     """
-    profile_slug = answers["profile"]
-    spokes = answers.get("spokes", 3) if profile_slug == "hub-and-spoke" else 3
-    frontends = answers.get("frontends", 1) if profile_slug == "scaleout" else 1
-    network_split = answers.get("network_split") if profile_slug in _MULTI_GATEWAY_PROFILES else None
-    redundant_role = answers.get("redundancy") if profile_slug in _REDUNDANCY_ROLE else None
+    arch_slug = answers["architecture"]
+    spokes = answers.get("spokes", 3) if arch_slug == "hub-and-spoke" else 3
+    frontends = answers.get("frontends", 1) if arch_slug == "scale-out" else 1
+    network_split = answers.get("network_split") if arch_slug in _MULTI_GATEWAY_ARCHITECTURES else None
+    redundant_role = answers.get("redundancy") if arch_slug in _REDUNDANCY_ROLE else None
     iiot, iiot_broker = answers.get("iiot", (False, None))
-    return ProfileOptions(
+    return ArchOptions(
         spokes=spokes,
         frontends=frontends,
         force=False,  # the wizard prompts on yellow/red instead of using --force.
@@ -375,30 +349,30 @@ def _summary_phase(name: str, prompter: Prompter, answers: Mapping[str, Any]) ->
     advisory and the preview loop live here so they re-run each time the summary
     is (re)entered after a back.
     """
-    profile_slug = answers["profile"]
+    arch_slug = answers["architecture"]
     options = _options_from_answers(answers)
 
     # Hub-and-spoke advisory: ask the user inside the wizard rather than
     # demanding --force. Yellow asks for confirmation, red asks for the
     # acknowledgement first and then proceeds via the ``force=True`` path so
-    # the profile's red-tier guard doesn't block them.
-    if profile_slug == "hub-and-spoke":
+    # the architecture's red-tier guard doesn't block them.
+    if arch_slug == "hub-and-spoke":
         options = _confirm_advisory_if_needed(prompter, options)
 
     try:
-        config = build_profile(profile_slug, name, options)
-    except ProfileError as exc:
+        config = build_architecture(arch_slug, name, options)
+    except ArchitectureError as exc:
         # Only happens if the user declined the red-tier confirmation;
         # treat as an explicit cancel.
         return WizardOutcome(
             config=ProjectConfig(name=name),
             confirmed=False,
-            profile=profile_slug,
+            architecture=arch_slug,
             options=options,
             summary_lines=[f"advisory: {exc}"],
         )
 
-    summary = _summarize(config, profile_slug, options)
+    summary = _summarize(config, arch_slug, options)
     while True:
         action = _ask_summary_action(prompter, summary)
         if action != "preview":
@@ -411,38 +385,15 @@ def _summary_phase(name: str, prompter: Prompter, answers: Mapping[str, Any]) ->
         # loop takes over and produces the final config.
         from ignition_stack import wizard_composer
 
-        result = wizard_composer.edit_loop(prompter, resolve(config), profile_slug, options)
+        result = wizard_composer.edit_loop(prompter, resolve(config), arch_slug, options)
         return _outcome_from_composer(result)
     return WizardOutcome(
         config=config,
         confirmed=(action == "generate"),
-        profile=profile_slug,
+        architecture=arch_slug,
         options=options,
         summary_lines=summary,
     )
-
-
-def _run_custom_track(name: str, prompter: Prompter) -> WizardOutcome:
-    """Build a bare topology preset, resolve it, and enter the composer."""
-    from ignition_stack import wizard_composer
-
-    profile_slug, options = _ask_topology_preset(prompter)
-    if profile_slug == "hub-and-spoke":
-        options = _confirm_advisory_if_needed(prompter, options)
-
-    try:
-        config = build_profile(profile_slug, name, options)
-    except ProfileError as exc:
-        return WizardOutcome(
-            config=ProjectConfig(name=name),
-            confirmed=False,
-            profile=profile_slug,
-            options=options,
-            summary_lines=[f"advisory: {exc}"],
-        )
-
-    result = wizard_composer.edit_loop(prompter, resolve(config), profile_slug, options)
-    return _outcome_from_composer(result)
 
 
 def _outcome_from_composer(result) -> WizardOutcome:
@@ -450,7 +401,7 @@ def _outcome_from_composer(result) -> WizardOutcome:
     return WizardOutcome(
         config=result.config,
         confirmed=result.confirmed,
-        profile=result.profile,
+        architecture=result.architecture,
         options=result.options,
         summary_lines=result.summary_lines,
     )
@@ -461,53 +412,19 @@ def _outcome_from_composer(result) -> WizardOutcome:
 # --------------------------------------------------------------------------- #
 
 
-def _ask_track(prompter: Prompter, default: str = _TRACK_QUICK) -> str:
-    """The two-track gate (issue #43 phase 7): quick profile flow or custom composer.
-
-    The wizard's very first prompt, so it carries no Back affordance.
-    """
-    return prompter.select(
-        "How do you want to build?",
-        [
-            (_TRACK_QUICK, "Quick — profile flow"),
-            (_TRACK_CUSTOM, "Custom — compose services per gateway"),
-        ],
-        default=default,
-    )
+# Terse architecture labels for the wizard select, in IA's vocabulary. The
+# longer ``summary`` attributes drive ``--help`` and docs; the wizard keeps the
+# menu scannable with one structural phrase per choice.
+_ARCH_LABELS: dict[str, str] = {
+    "basic": "one gateway",
+    "scale-out": "frontend/backend tiers",
+    "hub-and-spoke": "central hub, edge spokes",
+}
 
 
-def _ask_profile(prompter: Prompter, default: str = "standalone", allow_back: bool = False) -> Any:
-    choices = [(p.slug, f"{p.slug:<14} - {p.summary}") for p in list_profiles()]
-    return prompter.select("Architecture profile?", choices, default=default, allow_back=allow_back)
-
-
-def _ask_topology_preset(prompter: Prompter) -> tuple[str, ProfileOptions]:
-    """Pick the Custom track's starting topology + its count/edge/split/redundancy.
-
-    Reuses the Quick-track ``_ask_*`` helpers so the two tracks never drift on
-    what a profile's topology questions are. ``mcp-n8n`` is skipped - it is just
-    "standalone + n8n + MCP dropin", expressible by attaching n8n in the
-    composer. The preset is built with **no database and no services**
-    (``database_kind=None``): the composer is where the registry gets populated,
-    so it starts from a bare gateway skeleton.
-    """
-    choices = [(p.slug, f"{p.slug:<14} - {p.summary}") for p in list_profiles() if p.slug != "mcp-n8n"]
-    profile_slug = prompter.select("Starting topology (preset)?", choices, default="standalone")
-    spokes = _ask_spokes(prompter) if profile_slug == "hub-and-spoke" else 3
-    frontends = _ask_frontends(prompter) if profile_slug == "scaleout" else 1
-    edge_role = _ask_edge_role(prompter, profile_slug)
-    network_split = _ask_network_split(prompter, profile_slug)
-    redundant_role = _ask_redundancy(prompter, profile_slug)
-    options = ProfileOptions(
-        spokes=spokes,
-        frontends=frontends,
-        force=False,
-        edge_role=edge_role,
-        network_split=network_split,
-        database_kind=None,
-        redundant_role=redundant_role,
-    )
-    return profile_slug, options
+def _ask_architecture(prompter: Prompter, default: str = "basic", allow_back: bool = False) -> Any:
+    choices = [(a.slug, f"{a.slug} — {_ARCH_LABELS.get(a.slug, a.summary)}") for a in list_architectures()]
+    return prompter.select("Architecture?", choices, default=default, allow_back=allow_back)
 
 
 def _ask_iiot(prompter: Prompter, default: tuple[bool, str | None] = (False, None), allow_back: bool = False) -> Any:
@@ -538,29 +455,29 @@ def _ask_frontends(prompter: Prompter, default: int = 1, allow_back: bool = Fals
     return prompter.integer("Frontend gateway count?", default=default, minimum=1, allow_back=allow_back)
 
 
-def _ask_network_split(prompter: Prompter, profile_slug: str, default: bool | None = None, allow_back: bool = False) -> Any:
+def _ask_network_split(prompter: Prompter, arch_slug: str, default: bool | None = None, allow_back: bool = False) -> Any:
     """Whether to split frontend/backend onto separate networks.
 
-    Only meaningful for multi-gateway profiles; single-gateway profiles
-    return ``None`` (no prompt) and let the profile keep its default. ``default``
-    of ``None`` means "use the per-profile proposal"; a stored bool replays it.
+    Only meaningful for multi-gateway architectures; single-gateway architectures
+    return ``None`` (no prompt) and let the architecture keep its default. ``default``
+    of ``None`` means "use the per-architecture proposal"; a stored bool replays it.
     """
-    if profile_slug not in _MULTI_GATEWAY_PROFILES:
+    if arch_slug not in _MULTI_GATEWAY_ARCHITECTURES:
         return None
     if default is None:
-        default = _DEFAULT_NETWORK_SPLIT.get(profile_slug, False)
+        default = _DEFAULT_NETWORK_SPLIT.get(arch_slug, False)
     return prompter.confirm("Split frontend/backend onto separate Docker networks?", default=default, allow_back=allow_back)
 
 
-def _ask_redundancy(prompter: Prompter, profile_slug: str, default: bool = False, allow_back: bool = False) -> Any:
-    """Offer to make the profile's workhorse role redundant (master + backup).
+def _ask_redundancy(prompter: Prompter, arch_slug: str, default: bool = False, allow_back: bool = False) -> Any:
+    """Offer to make the architecture's workhorse role redundant (master + backup).
 
-    Only profiles with a single pairable role prompt; the rest return ``None``.
+    Only architectures with a single pairable role prompt; the rest return ``None``.
     Defaults off - redundancy doubles the gateway count and needs two licenses,
     so it is opt-in. Returns the role slug when accepted, ``None`` when declined,
     or :data:`BACK` on a back request.
     """
-    role = _REDUNDANCY_ROLE.get(profile_slug)
+    role = _REDUNDANCY_ROLE.get(arch_slug)
     if role is None:
         return None
     make = prompter.confirm(
@@ -589,7 +506,7 @@ def _ask_disable_builtins(
     user adds or removes from a sensible baseline instead of scrolling a 29-item
     list. Whatever ends up *un*selected becomes the stored ``disable_builtins``;
     the engine emits the inverse whitelist. Returning the inverse keeps the
-    config model, the writer, and the non-interactive profile path unchanged.
+    config model, the writer, and the non-interactive architecture path unchanged.
     """
     from ignition_stack.catalog.builtins import default_builtin_catalog, jdbc_driver_for
 
@@ -625,37 +542,37 @@ def _ask_database(prompter: Prompter, default: str = "postgres", allow_back: boo
     return None if raw == "none" else raw
 
 
-def _ask_edge_role(prompter: Prompter, profile_slug: str, default: Any = _UNSET, allow_back: bool = False) -> Any:
-    choices = _edition_choices_for(profile_slug)
+def _ask_edge_role(prompter: Prompter, arch_slug: str, default: Any = _UNSET, allow_back: bool = False) -> Any:
+    choices = _edition_choices_for(arch_slug)
     if not choices:
         return None
     valid = {value for value, _ in choices}
     # Replay the stored raw value only when it is still a legal choice for the
-    # current profile; otherwise fall back to the profile's canonical default.
-    # This is what drops an edge-role that the new profile no longer offers.
+    # current architecture; otherwise fall back to the architecture's canonical
+    # default. This is what drops an edge-role the new architecture no longer offers.
     if default is _UNSET or default not in valid:
-        default = _DEFAULT_EDGE_ROLE.get(profile_slug, "none")
+        default = _DEFAULT_EDGE_ROLE.get(arch_slug, "none")
     raw = prompter.select("Run the Edge edition on which role?", choices, default=default, allow_back=allow_back)
     if raw is BACK:
         return BACK
     return None if raw == "none" else raw
 
 
-def _edition_choices_for(profile_slug: str) -> list[tuple[str, str]]:
-    """The set of roles that can be Edge-ified per profile, plus 'none'."""
-    if profile_slug == "scaleout":
+def _edition_choices_for(arch_slug: str) -> list[tuple[str, str]]:
+    """The set of roles that can be Edge-ified per architecture, plus 'none'."""
+    if arch_slug == "scale-out":
         return [
             ("none", "All gateways run standard"),
             ("frontend", "Frontends run Edge"),
             ("backend", "Backend runs Edge"),
         ]
-    if profile_slug == "hub-and-spoke":
+    if arch_slug == "hub-and-spoke":
         return [
             ("none", "All gateways run standard"),
             ("spoke", "All spokes run Edge"),
             ("hub", "Hub runs Edge"),
         ]
-    # standalone / mcp-n8n: single gateway
+    # basic: single gateway
     return [
         ("none", "Standard edition"),
         ("gateway", "Edge edition"),
@@ -739,16 +656,16 @@ def _ask_reverse_proxy(prompter: Prompter, default: ReverseProxyConfig | None = 
     return ReverseProxyConfig(mode="external", network=network)
 
 
-def _confirm_advisory_if_needed(prompter: Prompter, options: ProfileOptions) -> ProfileOptions:
+def _confirm_advisory_if_needed(prompter: Prompter, options: ArchOptions) -> ArchOptions:
     """Surface yellow/red advisories during the wizard run.
 
     Green tier proceeds silently. Yellow asks for confirmation; declining
     rolls back to ``spokes=4`` (still green) so the wizard doesn't strand
     the user on a config they didn't want. Red asks the user to explicitly
     acknowledge the cost; on confirmation, we set ``force=True`` so the
-    profile builder lets the config through.
+    architecture builder lets the config through.
     """
-    from ignition_stack.profiles import spoke_advisory
+    from ignition_stack.architectures import spoke_advisory
 
     advisory = spoke_advisory(options.spokes)
     if advisory.tier == "green":
@@ -765,16 +682,16 @@ def _confirm_advisory_if_needed(prompter: Prompter, options: ProfileOptions) -> 
     return _with(options, force=True) if confirmed else _with(options, spokes=4)
 
 
-def _with(options: ProfileOptions, **changes: Any) -> ProfileOptions:
-    """Return a new ProfileOptions with ``changes`` applied (frozen dataclass)."""
+def _with(options: ArchOptions, **changes: Any) -> ArchOptions:
+    """Return a new ArchOptions with ``changes`` applied (frozen dataclass)."""
     from dataclasses import replace
 
     return replace(options, **changes)
 
 
-def _summarize(config: ProjectConfig, profile_slug: str, options: ProfileOptions) -> list[str]:
+def _summarize(config: ProjectConfig, arch_slug: str, options: ArchOptions) -> list[str]:
     lines = [
-        f"profile      : {profile_slug}",
+        f"architecture : {arch_slug}",
         f"project name : {config.name}",
         f"gateways     : {len(config.gateways)} ({', '.join(f'{g.name}={g.ignition_edition}' for g in config.gateways)})",
         f"database     : {config.database.kind if config.database else 'none'}",
@@ -820,8 +737,8 @@ def _ask_summary_action(prompter: Prompter, summary: list[str]) -> Any:
     """The summary gate: generate / preview / tweak / cancel, plus Back.
 
     *generate* writes the project as-is (today's confirmed path); *tweak* hands
-    the built config to the Custom composer pre-filled; *cancel* aborts (the
-    CLI maps an unconfirmed outcome to exit 130). The Back affordance returns
+    the built config to the composer pre-filled; *cancel* aborts (the CLI maps
+    an unconfirmed outcome to exit 130). The Back affordance returns
     :data:`BACK`, sending the user to the last question instead of cancelling.
     """
     block = "\n".join(summary)
@@ -830,7 +747,7 @@ def _ask_summary_action(prompter: Prompter, summary: list[str]) -> Any:
         [
             ("generate", "Generate the project"),
             ("preview", "Preview the resolved config (dry-run)"),
-            ("tweak", "Tweak per-gateway services in the custom composer"),
+            ("tweak", "Tweak per-gateway services in the composer"),
             ("cancel", "Cancel"),
         ],
         default="generate",
@@ -839,12 +756,12 @@ def _ask_summary_action(prompter: Prompter, summary: list[str]) -> Any:
 
 
 # --------------------------------------------------------------------------- #
-# Quick-track step machine (issue #59): steps as data, with back-navigation
+# Step machine (issue #59): steps as data, with back-navigation
 # --------------------------------------------------------------------------- #
 
 
-def _step_profile(prompter: Prompter, answers: dict[str, Any], allow_back: bool) -> Any:
-    return _ask_profile(prompter, default=answers.get("profile", "standalone"), allow_back=allow_back)
+def _step_architecture(prompter: Prompter, answers: dict[str, Any], allow_back: bool) -> Any:
+    return _ask_architecture(prompter, default=answers.get("architecture", "basic"), allow_back=allow_back)
 
 
 def _step_spokes(prompter: Prompter, answers: dict[str, Any], allow_back: bool) -> Any:
@@ -864,17 +781,17 @@ def _step_database(prompter: Prompter, answers: dict[str, Any], allow_back: bool
 def _step_edge_role(prompter: Prompter, answers: dict[str, Any], allow_back: bool) -> Any:
     prior = answers.get("edge_role", _UNSET)
     raw_default = _UNSET if prior is _UNSET else ("none" if prior is None else prior)
-    return _ask_edge_role(prompter, answers["profile"], default=raw_default, allow_back=allow_back)
+    return _ask_edge_role(prompter, answers["architecture"], default=raw_default, allow_back=allow_back)
 
 
 def _step_network_split(prompter: Prompter, answers: dict[str, Any], allow_back: bool) -> Any:
-    return _ask_network_split(prompter, answers["profile"], default=answers.get("network_split"), allow_back=allow_back)
+    return _ask_network_split(prompter, answers["architecture"], default=answers.get("network_split"), allow_back=allow_back)
 
 
 def _step_redundancy(prompter: Prompter, answers: dict[str, Any], allow_back: bool) -> Any:
     prior = answers.get("redundancy", _UNSET)
     default = False if prior is _UNSET else (prior is not None)
-    return _ask_redundancy(prompter, answers["profile"], default=default, allow_back=allow_back)
+    return _ask_redundancy(prompter, answers["architecture"], default=default, allow_back=allow_back)
 
 
 def _step_iiot(prompter: Prompter, answers: dict[str, Any], allow_back: bool) -> Any:
@@ -895,19 +812,19 @@ def _step_exposure(prompter: Prompter, answers: dict[str, Any], allow_back: bool
     return _ask_reverse_proxy(prompter, default=answers.get("exposure"), allow_back=allow_back)
 
 
-#: The Quick track as an ordered, introspectable list of steps. ``applies``
-#: reads the chosen profile so count/split/redundancy steps appear only where
-#: they mean something (and are skipped in both walk directions otherwise). The
+#: The wizard as an ordered, introspectable list of steps. ``applies`` reads the
+#: chosen architecture so count/split/redundancy steps appear only where they
+#: mean something (and are skipped in both walk directions otherwise). The
 #: summary is reached when the cursor runs past the end of this list. The
 #: follow-up breadcrumb (#60) renders ``label`` for the applicable subset.
-QUICK_STEPS: list[Step] = [
-    Step("profile", "Profile", lambda a: True, _step_profile),
-    Step("spokes", "Spoke count", lambda a: a.get("profile") == "hub-and-spoke", _step_spokes),
-    Step("frontends", "Frontend count", lambda a: a.get("profile") == "scaleout", _step_frontends),
+WIZARD_STEPS: list[Step] = [
+    Step("architecture", "Architecture", lambda a: True, _step_architecture),
+    Step("spokes", "Spoke count", lambda a: a.get("architecture") == "hub-and-spoke", _step_spokes),
+    Step("frontends", "Frontend count", lambda a: a.get("architecture") == "scale-out", _step_frontends),
     Step("database", "Database", lambda a: True, _step_database),
     Step("edge_role", "Edge edition", lambda a: True, _step_edge_role),
-    Step("network_split", "Network split", lambda a: a.get("profile") in _MULTI_GATEWAY_PROFILES, _step_network_split),
-    Step("redundancy", "Redundancy", lambda a: a.get("profile") in _REDUNDANCY_ROLE, _step_redundancy),
+    Step("network_split", "Network split", lambda a: a.get("architecture") in _MULTI_GATEWAY_ARCHITECTURES, _step_network_split),
+    Step("redundancy", "Redundancy", lambda a: a.get("architecture") in _REDUNDANCY_ROLE, _step_redundancy),
     Step("iiot", "IIoT", lambda a: True, _step_iiot),
     Step("modules", "Modules", lambda a: True, _step_modules),
     Step("exposure", "Exposure", lambda a: True, _step_exposure),
@@ -915,12 +832,12 @@ QUICK_STEPS: list[Step] = [
 
 
 def applicable_steps(answers: Mapping[str, Any]) -> list[Step]:
-    """The Quick-track steps that apply for the given ``answers``.
+    """The wizard steps that apply for the given ``answers``.
 
     Introspection seam for the issue #60 breadcrumb: the position of the current
     step in this list, and its length, give "step N of M".
     """
-    return [step for step in QUICK_STEPS if step.applies(answers)]
+    return [step for step in WIZARD_STEPS if step.applies(answers)]
 
 
 # --------------------------------------------------------------------------- #

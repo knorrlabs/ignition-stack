@@ -1,25 +1,25 @@
-"""Carry a resolved service registry across a ``switch-profile`` reshape.
+"""Carry a resolved service registry across a ``switch-arch`` reshape.
 
-``switch-profile`` rebuilds a stack under a new architecture profile. The
-profile only knows how to lay down topology + the inputs ``ProfileOptions``
-carries; it cannot know about the *richer* registry shapes a hand-authored or
-Custom-wizard config can hold:
+``switch-arch`` rebuilds a stack under a new architecture. The architecture
+only knows how to lay down topology + the inputs ``ArchOptions`` carries; it
+cannot know about the *richer* registry shapes a hand-authored or
+composer-built config can hold:
 
 - a custom instance ``id`` that differs from its service slug;
 - per-instance ``image`` / ``env`` / ``user`` / ``password`` overrides;
-- a second database (distinct kind) beyond the profile's default;
+- a second database (distinct kind) beyond the architecture's default;
 - partial / role-specific attachment sets (an instance attached to only some
   gateways, not fanned to all).
 
-Anything *not* expressible through ``ProfileOptions.services`` /
-``database_kind`` rides here instead: :func:`carry_registry` re-grafts those
-instances onto the freshly built config and re-maps their attachments by role
-into the new topology. Attachments whose source gateway has no counterpart in
-the target topology - or that would violate a new-topology invariant - are
-**dropped with a printed advisory** rather than failing the reshape.
+Anything *not* expressible through ``ArchOptions.services`` / ``database_kind``
+rides here instead: :func:`carry_registry` re-grafts those instances onto the
+freshly built config and re-maps their attachments by role into the new
+topology. Attachments whose source gateway has no counterpart in the target
+topology - or that would violate a new-topology invariant - are **dropped with
+a printed advisory** rather than failing the reshape.
 
-The IIoT overlay is *not* carried here: ``switch-profile`` recovers IIoT intent
-into ``ProfileOptions.iiot`` / ``iiot_broker`` so ``apply_iiot`` re-wires the
+The IIoT overlay is *not* carried here: ``switch-arch`` recovers IIoT intent
+into ``ArchOptions.iiot`` / ``iiot_broker`` so ``apply_iiot`` re-wires the
 broker + Transmission/Engine roles natively in the new topology. The broker
 instance and its ``mqtt-transmission`` / ``mqtt-engine`` attachments are
 therefore skipped here to avoid double-wiring.
@@ -40,9 +40,9 @@ from ignition_stack.services.loader import load_all_services
 from ignition_stack.services.manifest import ServiceManifest
 
 # Roles that aggregate centrally (full gateways) versus roles that sit on the
-# edge side and publish/scale out. A role-less gateway (standalone / mcp-n8n)
-# is central - it is the one full gateway in its topology. The two-way name
-# preference (hub<->backend, spoke<->frontend) is tried before the class match.
+# edge side and publish/scale out. A role-less gateway (basic) is central - it
+# is the one full gateway in its topology. The two-way name preference
+# (hub<->backend, spoke<->frontend) is tried before the class match.
 _CENTRAL_ROLES = frozenset({"hub", "backend"})
 _EDGE_SIDE_ROLES = frozenset({"spoke", "frontend"})
 _ROLE_COUNTERPART = {
@@ -52,7 +52,7 @@ _ROLE_COUNTERPART = {
     "frontend": "spoke",
 }
 
-# Attachment roles the IIoT overlay owns; carried via ProfileOptions.iiot, never
+# Attachment roles the IIoT overlay owns; carried via ArchOptions.iiot, never
 # re-grafted here (apply_iiot re-wires them in the new topology).
 _IIOT_ROLES = frozenset({"mqtt-transmission", "mqtt-engine"})
 
@@ -66,13 +66,13 @@ def is_default_representable(
     config: ProjectConfig,
     catalog: dict[str, ServiceManifest],
 ) -> bool:
-    """True when ``instance`` is faithfully carried by ``ProfileOptions`` alone.
+    """True when ``instance`` is faithfully carried by ``ArchOptions`` alone.
 
     The "today's behavior" carry: an instance whose ``id`` equals its service
     slug, carries no per-instance override, and is attached as a plain
     ``consumer`` on every *eligible* gateway (every gateway, minus the Edge
     gateways a ``never_on_edge`` service skips). Such an instance is fully
-    reproduced by listing its slug in ``ProfileOptions.services`` and letting
+    reproduced by listing its slug in ``ArchOptions.services`` and letting
     the resolver re-lower it, so it does not need re-grafting.
 
     Databases are never representable through ``services`` (they ride
@@ -103,7 +103,7 @@ def is_default_representable(
 
 
 def database_carried_by_kind(config: ProjectConfig, catalog: dict[str, ServiceManifest]) -> ServiceInstance | None:
-    """The primary database iff it rides ``ProfileOptions.database_kind`` cleanly.
+    """The primary database iff it rides ``ArchOptions.database_kind`` cleanly.
 
     ``database_kind`` always rebuilds a database with the canonical id ``db``,
     default credentials, the kind's default image, and a consumer attachment on
@@ -149,8 +149,8 @@ def detect_iiot_broker(config: ProjectConfig) -> str | None:
     Detection is by attachment role: a stack carrying any ``mqtt-transmission``
     or ``mqtt-engine`` attachment was built with ``apply_iiot``; the instance
     those attachments reference is the broker. Returning its *service slug*
-    (not its id) lets ``switch-profile`` re-apply the overlay with
-    ``ProfileOptions.iiot_broker``.
+    (not its id) lets ``switch-arch`` re-apply the overlay with
+    ``ArchOptions.iiot_broker``.
     """
     by_id = {inst.id: inst for inst in config.service_instances}
     for gw in config.gateways:
@@ -200,7 +200,7 @@ def carry_registry(
     """Re-graft ``old_config``'s richer registry onto the freshly built config.
 
     Mutates and returns ``new_config``. For every old instance that is *not*
-    already default-representable (carried via ``ProfileOptions``) and *not* the
+    already default-representable (carried via ``ArchOptions``) and *not* the
     IIoT broker, the instance is added to the registry (preserving id +
     overrides) and its non-IIoT attachments are re-mapped by role into the new
     topology. Attachments are dropped - each with a printed
@@ -212,7 +212,7 @@ def carry_registry(
 
     The order matters: instances are added before attachments so an attachment's
     referenced instance always exists, and the per-gateway db cap is checked
-    against attachments already present (including those the profile/lowering
+    against attachments already present (including those the architecture/lowering
     produced) so the carry never over-attaches.
     """
     catalog = load_all_services()
@@ -222,7 +222,7 @@ def carry_registry(
     dropped_instance: dict[str, str] = {}
 
     for old_inst in old_config.service_instances:
-        # The IIoT broker rides ProfileOptions.iiot; apply_iiot re-adds it.
+        # The IIoT broker rides ArchOptions.iiot; apply_iiot re-adds it.
         if iiot_broker_slug is not None and old_inst.service == iiot_broker_slug:
             continue
         if is_default_representable(old_inst, old_config, catalog):
@@ -303,7 +303,7 @@ def _try_attach(
     """
     manifest = catalog[inst.service]
     if any(a.instance == inst.id and a.role == att.role for a in target.services):
-        return  # already attached (idempotent / profile already produced it)
+        return  # already attached (idempotent / architecture already produced it)
 
     if manifest.placement.never_on_edge and target.ignition_edition == "edge":
         dropped.setdefault(inst.id, []).append(f"'{inst.service}' must not run on Edge gateway '{target.name}'")

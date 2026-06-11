@@ -1,14 +1,15 @@
-"""Scaleout profile: N frontend gateways + 1 backend, networked together.
+"""Scale-out architecture: N frontend gateways + 1 backend, networked together.
 
-Two roles: ``frontend`` (user-facing UI / OPC-UA aggregation) and
-``backend`` (the database-connected workhorse). Every gateway runs the
-standard edition by default - the all-standard shape is the common case;
-opt a role into Edge with ``edge_role``. With one frontend the gateway is
-named ``frontend``; with N>1 they are ``frontend-1``..``frontend-N``. Ports
-step up from 9088, the backend taking the next free port. Every gateway
-joins the frontend AND backend networks so a frontend can reach the DB the
-backend owns. The network split is on by default - that's the whole point
-of the scaleout demo - but ``options.network_split`` can override it.
+This mirrors Ignition's documented Scale Out architecture. Two roles:
+``frontend`` (user-facing UI / OPC-UA aggregation) and ``backend`` (the
+database-connected workhorse). Every gateway runs the standard edition by
+default - the all-standard shape is the common case; opt a role into Edge with
+``edge_role``. With one frontend the gateway is named ``frontend``; with N>1
+they are ``frontend-1``..``frontend-N``. Ports step up from 9088, the backend
+taking the next free port. Every gateway joins the frontend AND backend
+networks so a frontend can reach the DB the backend owns. The network split is
+on by default - that's the whole point of the scale-out demo - but
+``options.network_split`` can override it.
 
 The gateway-network link auto-forms with no UI approval: each frontend gets
 ``gan_outgoing=["backend"]``, which the compose engine renders as a plain
@@ -23,16 +24,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from ignition_stack.architectures.base import Architecture, ArchOptions, register
 from ignition_stack.config import DatabaseConfig, GatewayConfig, ProjectConfig
-from ignition_stack.profiles.base import Profile, ProfileOptions, register
 
 
 @dataclass(frozen=True)
-class ScaleoutProfile:
-    slug: str = "scaleout"
+class ScaleOutArchitecture:
+    slug: str = "scale-out"
     summary: str = "Frontend + backend Ignition gateways via gateway network + Postgres."
 
-    def build(self, name: str, options: ProfileOptions) -> ProjectConfig:
+    def build(self, name: str, options: ArchOptions) -> ProjectConfig:
         # All gateways run standard unless the caller opts a role into Edge.
         edge_role = options.edge_role if options.edge_role is not None else "none"
         frontends = max(options.frontends, 1)
@@ -66,7 +67,7 @@ class ScaleoutProfile:
 
         return ProjectConfig(
             name=name,
-            profile=self.slug,
+            architecture=self.slug,
             network_split=network_split,
             gateways=gateways,
             database=_database(options),
@@ -75,10 +76,10 @@ class ScaleoutProfile:
         )
 
 
-def _database(options: ProfileOptions) -> DatabaseConfig | None:
+def _database(options: ArchOptions) -> DatabaseConfig | None:
     if options.database_kind is None:
         return None
     return DatabaseConfig(kind=options.database_kind)
 
 
-profile: Profile = register(ScaleoutProfile())
+architecture: Architecture = register(ScaleOutArchitecture())

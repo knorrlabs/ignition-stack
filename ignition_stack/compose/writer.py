@@ -36,7 +36,7 @@ from ignition_stack.services.loader import load_all_services, service_dir
 from ignition_stack.services.resolver import resolve
 
 _STATIC_PACKAGE = "ignition_stack.templates"
-_STATIC_PROFILE = "standalone-postgres"
+_STATIC_TEMPLATE = "standalone-postgres"
 
 # The Cirrus Link Transmission/Engine seed trees the Phase-4 spike proved
 # file-seedable, kept in one shared place so every broker that wires the same
@@ -76,11 +76,11 @@ def write_project(
     the on-disk seeds agree on the same fully-expanded stack.
 
     Every project records its resolved config under ``.ignition-stack/`` so
-    ``reset`` / ``switch-profile`` can regenerate or reshape it in place; the
+    ``reset`` / ``switch-arch`` can regenerate or reshape it in place; the
     same artifact can be dumped with ``init --dry-run`` and rebuilt with
     ``init -f``.
 
-    ``overwrite`` lets ``reset`` / ``switch-profile`` write into a directory
+    ``overwrite`` lets ``reset`` / ``switch-arch`` write into a directory
     that still holds the preserved ``.ignition-stack/`` record; normal ``init``
     leaves it ``False`` so a stray non-empty directory still refuses to clobber.
 
@@ -441,7 +441,7 @@ def _render_env(config: ProjectConfig) -> str:
 
 
 def _static_root() -> Traversable:
-    return resources.files(_STATIC_PACKAGE) / _STATIC_PROFILE
+    return resources.files(_STATIC_PACKAGE) / _STATIC_TEMPLATE
 
 
 _TRAEFIK_README = """\
