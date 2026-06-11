@@ -37,7 +37,7 @@ from rich.console import Console
 from rich.table import Table
 
 from ignition_stack.catalog.builtins import default_builtin_catalog, jdbc_driver_for
-from ignition_stack.config import ProjectConfig, ServiceAttachment, ServiceInstance
+from ignition_stack.config import ProjectConfig, ServiceAttachment, ServiceInstance, dump_config
 from ignition_stack.profiles import ProfileOptions, apply_iiot
 from ignition_stack.services.loader import load_all_services
 from ignition_stack.services.manifest import ServiceManifest
@@ -67,7 +67,7 @@ _ACTIONS: list[tuple[str, str]] = [
     ("edition", "Set a gateway's edition (standard / edge)"),
     ("iiot", "Add or remove IIoT (MQTT/Sparkplug)"),
     ("rename", "Rename an instance"),
-    ("done", "Done - review and generate"),
+    ("done", "Done — review and generate"),
 ]
 
 
@@ -105,15 +105,20 @@ def edit_loop(
         _print_composition(working)
         action = prompter.select("Composer action?", _ACTIONS, default="done")
         if action == "done":
-            choice = prompter.select(
-                "Generate this composition?",
-                [
-                    ("generate", "Generate the project"),
-                    ("edit", "Keep editing"),
-                    ("cancel", "Cancel"),
-                ],
-                default="generate",
-            )
+            while True:
+                choice = prompter.select(
+                    "Generate this composition?",
+                    [
+                        ("generate", "Generate the project"),
+                        ("preview", "Preview the resolved config (dry-run)"),
+                        ("edit", "Keep editing"),
+                        ("cancel", "Cancel"),
+                    ],
+                    default="generate",
+                )
+                if choice != "preview":
+                    break
+                console.print(dump_config(working, "yaml"), end="", markup=False)
             if choice == "edit":
                 continue
             return ComposerResult(
@@ -309,7 +314,7 @@ def _action_iiot(prompter: Prompter, working: ProjectConfig) -> ProjectConfig:
     catalog = load_all_services()
     brokers = [inst for inst in working.service_instances if catalog[inst.service].kind == "mqtt-broker"]
     if brokers:
-        if not prompter.confirm(f"Unwire the MQTT pipeline (broker '{brokers[0].id}')?", default=False):
+        if not prompter.confirm(f"Remove the IIoT pipeline (broker '{brokers[0].id}')?", default=False):
             return working
         return _try_mutate(working, lambda c: _unwire_iiot(c, catalog))
     broker = prompter.select("MQTT broker?", mqtt_broker_choices(catalog), default="chariot")
