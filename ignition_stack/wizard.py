@@ -305,6 +305,19 @@ def walk(name: str, prompter: Prompter) -> WizardOutcome:
         if not step.applies(answers):
             i += 1
             continue
+        # Render the progress breadcrumb above this step's prompt.  Recompute
+        # applicable_steps each iteration so the total shrinks/grows correctly
+        # after an architecture change (e.g. basic→hub-and-spoke adds spokes).
+        _app = applicable_steps(answers)
+        _app_names = [s.name for s in _app]
+        _pos = _app_names.index(step.name) + 1 if step.name in _app_names else len(_app)
+        _total = len(_app)
+        # Build the trail: labels of steps already answered (in history order)
+        # plus the current step's label.
+        _answered_labels = [steps[idx].label for idx in history if steps[idx].name in _app_names]
+        _trail = [*_answered_labels, step.label]
+        _header = _breadcrumb(_pos, _total, _trail)
+        console.print(f"[dim]{_header}[/dim]")
         # The first step (architecture) has no earlier prompt to return to, so it
         # carries no Back affordance.
         answer = step.ask(prompter, answers, bool(history))
@@ -901,10 +914,44 @@ WIZARD_STEPS: list[Step] = [
 def applicable_steps(answers: Mapping[str, Any]) -> list[Step]:
     """The wizard steps that apply for the given ``answers``.
 
-    Introspection seam for the issue #60 breadcrumb: the position of the current
-    step in this list, and its length, give "step N of M".
+    Introspection seam for the breadcrumb: the position of the current step in
+    this list, and its length, give "step N of M".
     """
     return [step for step in WIZARD_STEPS if step.applies(answers)]
+
+
+def _breadcrumb(position: int, total: int, trail_labels: list[str], max_width: int = 72) -> str:
+    """Build the one-line progress header shown above each wizard prompt.
+
+    ``position`` is 1-based (the step the user is *about to answer*).
+    ``trail_labels`` includes the labels of already-answered steps plus the
+    current step's label (so the current label is always the last element).
+    The counter ``[N/M]`` is prefixed, then the full trail joined by `` > ``.
+    When the joined trail would push the whole line beyond ``max_width``
+    characters, the middle is replaced with ``...`` so the first answered step
+    and the current step are always visible.
+
+    Returns a plain string; the caller wraps it in Rich markup for dim styling.
+    """
+    counter = f"[{position}/{total}]"
+    sep = " › "  # noqa: RUF001  # SINGLE RIGHT-POINTING ANGLE QUOTATION MARK
+    if not trail_labels:
+        return counter
+
+    full_trail = sep.join(trail_labels)
+    line = f"{counter} {full_trail}"
+    if len(line) <= max_width or len(trail_labels) <= 2:
+        return line
+
+    # Elide the middle: keep first and last labels with "…" between them.
+    # Always show at least the first completed step and the current step.
+    first = trail_labels[0]
+    last = trail_labels[-1]
+    candidate = f"{counter} {first}{sep}…{sep}{last}"
+    if len(candidate) <= max_width:
+        return candidate
+    # Extreme case: even first+…+last is too long; truncate just to last.
+    return f"{counter} {last}"
 
 
 # --------------------------------------------------------------------------- #
