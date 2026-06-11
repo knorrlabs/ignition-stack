@@ -8,6 +8,26 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **Profiles are now architectures, mirroring Ignition's own vocabulary.** The
+  tool's building blocks are renamed to Ignition's [documented system
+  architectures](https://docs.inductiveautomation.com/docs/8.3/system-architectures):
+  `standalone` → `basic`, `scaleout` → `scale-out`, `hub-and-spoke` unchanged.
+  This is a breaking rename end to end (no userbase yet): `init --profile` →
+  `init --arch`, the `switch-profile` command → `switch-arch`, the lifecycle
+  record's `profile` field → `architecture`, and the `ignition_stack.profiles`
+  package → `ignition_stack.architectures` (`ProfileOptions` → `ArchOptions`,
+  `build_profile` → `build_architecture`, `list_profiles` →
+  `list_architectures`, `ProfileError` → `ArchitectureError`). Shell completion,
+  docs nav (the Profiles section is now Architectures), and golden fixtures
+  follow. Old configuration records that carry the `profile` field no longer
+  load; regenerate them.
+- **The wizard is architecture-first.** The two-track "How do you want to
+  build?" gate is gone. The first prompt is now the architecture select itself
+  (`basic — one gateway`, `scale-out — frontend/backend tiers`, `hub-and-spoke —
+  central hub, edge spokes`), and the per-gateway composer is reached exactly one
+  way: the summary's **Tweak** action, which hands it the built, resolved config
+  pre-filled. The standalone Custom-track entry point and its topology-preset
+  prompt are removed.
 - **Reverse proxy now actually routes the gateways.** The wizard's proxy
   question is redesigned: the first prompt is exposure — host ports (default) or
   a reverse proxy. Choosing the proxy detects an existing `proxy` Docker network
@@ -22,6 +42,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   (`external` / `scaffold`) and `network`; `init` gains `--proxy-network` and its
   `--reverse-proxy` flag now takes the mode. The two redundant wizard options
   ("external" / "skip", both no-ops) are gone.
+
+### Removed
+
+- **The `mcp-n8n` profile.** It was not an Ignition system architecture — it is
+  Basic + the n8n service + the MCP module drop-in. The architecture, its
+  registration, wizard/list references, tests, and golden fixture are deleted.
+  The `mcp_dropin` config field and all drop-in / post-setup machinery stay
+  intact, so the declarative `--from-file` path still scaffolds the MCP drop-in
+  alongside n8n (covered by a new test). A guided wizard path for n8n + MCP
+  returns in a later release as part of the service-composition stage.
 
 ## [0.5.0] - 2026-06-11
 

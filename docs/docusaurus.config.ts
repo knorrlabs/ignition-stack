@@ -122,7 +122,7 @@ const config: Config = {
           title: "Docs",
           items: [
             { label: "Quickstart", to: "/get-started/quickstart" },
-            { label: "Profiles", to: "/profiles/" },
+            { label: "Architectures", to: "/architectures/" },
             { label: "Services", to: "/services/" },
             { label: "CLI reference", to: "/reference/cli" },
           ],

@@ -5,20 +5,20 @@ description: Use init --dry-run to dump a stack's resolved configuration, edit i
 
 # Dump, edit, and rebuild a stack
 
-A stack is fully described by its resolved [configuration record](../concepts/configuration-record.md). `init` can print that config instead of building (`--dry-run`) and build from a saved copy instead of a profile (`-f`). Together they make generation declarative: dump what a profile would build, hand-edit the parts you want to change, and rebuild from the file.
+A stack is fully described by its resolved [configuration record](../concepts/configuration-record.md). `init` can print that config instead of building (`--dry-run`) and build from a saved copy instead of an architecture (`-f`). Together they make generation declarative: dump what an architecture would build, hand-edit the parts you want to change, and rebuild from the file.
 
 ## Dump the resolved config
 
 `--dry-run` resolves the config and prints it to stdout without writing any files. It shows the full build input - project name, every gateway with its ports and edition, the database, the selected services, and the network layout - after the resolver has expanded implicit dependencies.
 
 ```sh
-ignition-stack init demo --profile scaleout --dry-run > arch.yml
+ignition-stack init demo --arch scale-out --dry-run > arch.yml
 ```
 
 The default format is YAML, ordered to read top-down (`name` first). Use `--output-format json` for JSON:
 
 ```sh
-ignition-stack init demo --profile scaleout --dry-run --output-format json > arch.json
+ignition-stack init demo --arch scale-out --dry-run --output-format json > arch.json
 ```
 
 `--dry-run` writes nothing to disk - not even the project directory - so it is safe to run anywhere just to inspect what a set of flags would produce.
@@ -31,17 +31,17 @@ Open the dumped file and change what you need - bump a gateway's `memory_mb`, ad
 ignition-stack init demo -f arch.yml
 ```
 
-The file is run through the same resolver and writer as a profile build, so a project built from a profile and one built from that profile's dump are byte-identical. The project name argument wins over the file's `name`, so you can stamp out the same topology under different names:
+The file is run through the same resolver and writer as an architecture build, so a project built from an architecture and one built from that architecture's dump are byte-identical. The project name argument wins over the file's `name`, so you can stamp out the same topology under different names:
 
 ```sh
 ignition-stack init customer-b -f arch.yml
 ```
 
-`-f` is mutually exclusive with `--profile` (the file already specifies the whole topology) and with the wizard (it never prompts). Combining `-f` with `--profile` is an error.
+`-f` is mutually exclusive with `--arch` (the file already specifies the whole topology) and with the wizard (it never prompts). Combining `-f` with `--arch` is an error.
 
 ## Validation
 
-The file is validated against the same schema the wizard and profiles produce. An unknown field, a bad enum, or a malformed document fails with a readable message and a non-zero exit - never a traceback:
+The file is validated against the same schema the wizard and architectures produce. An unknown field, a bad enum, or a malformed document fails with a readable message and a non-zero exit - never a traceback:
 
 ```text
 $ ignition-stack init demo -f broken.yml
@@ -51,7 +51,7 @@ error: invalid config in 'broken.yml':
 
 ## Heterogeneous stacks
 
-A profile gives every gateway the same services. The config file goes further: it carries a stack-level **service registry** (`service_instances`) and **per-gateway attachments** (each gateway's `services:` list), so different gateways can use different services, share one instance, or hold none at all.
+An architecture gives every gateway the same services. The config file goes further: it carries a stack-level **service registry** (`service_instances`) and **per-gateway attachments** (each gateway's `services:` list), so different gateways can use different services, share one instance, or hold none at all.
 
 Each entry in `service_instances` is an addressable service keyed by `id` and backed by a catalog `service` slug. Each entry in a gateway's `services:` list names the instance it attaches to and the `role` it plays (`consumer` by default; `mqtt-transmission` / `mqtt-engine` for the IIoT pipeline). Sharing is just two gateways naming the same instance `id`.
 
@@ -102,4 +102,4 @@ The flat `services: ["keycloak", "hivemq"]` list and single `database:` block fr
 
 ## Authoring from scratch
 
-Because the format is the schema, an external tool - an architecture builder, a script, a templating step - can emit a config file and hand it to `ignition-stack -f` to materialize a stack, without driving the wizard. Dump a profile first to see the shape, then treat that as your starting template.
+Because the format is the schema, an external tool - an architecture builder, a script, a templating step - can emit a config file and hand it to `ignition-stack -f` to materialize a stack, without driving the wizard. Dump an architecture first to see the shape, then treat that as your starting template.

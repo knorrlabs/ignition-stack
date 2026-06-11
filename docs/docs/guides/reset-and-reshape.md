@@ -1,6 +1,6 @@
 ---
 title: Reset and reshape a stack
-description: Use ignition-stack reset and switch-profile to return a project to a clean baseline or move it to a different architecture profile.
+description: Use ignition-stack reset and switch-arch to return a project to a clean baseline or move it to a different architecture.
 ---
 
 # Reset and reshape a stack
@@ -25,27 +25,27 @@ ignition-stack reset -C ./demo   # regenerate the tree
 cd demo && docker compose up -d  # bring the clean stack back up
 ```
 
-## Reshape to a different profile
+## Reshape to a different architecture
 
-`switch-profile` moves the project to a different [architecture profile](../profiles/index.md) while keeping the choices that are not profile-specific. The recorded database, services, reverse-proxy, and edge intent carry over to the new profile; the gateway count and network layout change to match it.
+`switch-arch` moves the project to a different [architecture](../architectures/index.md) while keeping the choices that are not architecture-specific. The recorded database, services, reverse-proxy, and edge intent carry over to the new architecture; the gateway count and network layout change to match it.
 
 ```sh
-ignition-stack switch-profile scaleout -C ./demo
+ignition-stack switch-arch scale-out -C ./demo
 ```
 
 It regenerates in place and re-records the result, so the reshaped project can be reset or switched again. A gateway dropped by the reshape is removed cleanly on the next `up` because the generated teardown uses `--remove-orphans`.
 
-Redundancy is the exception to "choices carry over". The [paired role](./redundancy.md) is profile-specific - standalone pairs `gateway`, scaleout pairs `backend`, hub-and-spoke pairs `hub` - so a reshape can only keep it when the target profile hosts a gateway with that same role. When it can't (for example a redundant `standalone` reshaped to `scaleout`, which has no `gateway`), `switch-profile` drops the redundancy, prints an advisory, and completes the reshape as a non-redundant stack rather than failing. Re-apply `--redundant` on a topology that has a pairable role to bring it back.
+Redundancy is the exception to "choices carry over". The [paired role](./redundancy.md) is architecture-specific - basic pairs `gateway`, scale-out pairs `backend`, hub-and-spoke pairs `hub` - so a reshape can only keep it when the target architecture hosts a gateway with that same role. When it can't (for example a redundant `basic` reshaped to `scale-out`, which has no `gateway`), `switch-arch` drops the redundancy, prints an advisory, and completes the reshape as a non-redundant stack rather than failing. Re-apply `--redundant` on a topology that has a pairable role to bring it back.
 
 ### What carries across a reshape
 
-The reshape carries the whole [service registry](./declarative-config.md#heterogeneous-stacks), not just the profile-level choices:
+The reshape carries the whole [service registry](./declarative-config.md#heterogeneous-stacks), not just the architecture-level choices:
 
 - **Service instances** survive, including custom ids and per-instance overrides (image, env, database credentials). A second database of a different kind comes along too.
 - **Attachments re-map by role.** A gateway's attachments move to the gateway that plays the matching role in the new topology, matched by name first, then by role counterpart (`hub` <-> `backend`, `spoke` <-> `frontend`), then by role class (central roles versus edge-side roles). So a database the old `backend` owned lands on the new `hub`.
-- **The IIoT pipeline** re-applies natively. If the stack had a broker with Transmission/Engine wiring, the overlay re-runs in the new topology: the edge-side role publishes (Transmission), the central role aggregates (Engine). Switching hub-and-spoke to scaleout moves the spokes' Transmission onto the frontends and the hub's Engine onto the backend.
+- **The IIoT pipeline** re-applies natively. If the stack had a broker with Transmission/Engine wiring, the overlay re-runs in the new topology: the edge-side role publishes (Transmission), the central role aggregates (Engine). Switching hub-and-spoke to scale-out moves the spokes' Transmission onto the frontends and the hub's Engine onto the backend.
 
-When the new topology can't host something, `switch-profile` **drops it with a `note` advisory** and completes the reshape rather than failing:
+When the new topology can't host something, `switch-arch` **drops it with a `note` advisory** and completes the reshape rather than failing:
 
 - An attachment whose source gateway has no counterpart in the new topology is dropped.
 - An attachment that would put a database on an Edge gateway, or give a gateway a second database connection, is dropped (those invariants always hold in the result).
@@ -55,15 +55,15 @@ The advisory names exactly what was dropped, so you can re-attach it by hand in 
 A typical reshape loop:
 
 ```sh
-ignition-stack switch-profile hub-and-spoke -C ./demo
+ignition-stack switch-arch hub-and-spoke -C ./demo
 cd demo && docker compose up -d
 # ...demo the new shape, then move on
-ignition-stack switch-profile standalone
+ignition-stack switch-arch basic
 ```
 
 ## When to use which
 
 - **`reset`** keeps the same shape and returns it to a known-clean baseline.
-- **`switch-profile`** changes the shape, carrying your database and services across.
+- **`switch-arch`** changes the shape, carrying your database and services across.
 
 Both leave the `.ignition-stack/` record in place, so the project stays reshapeable no matter how many times you reset or switch it.

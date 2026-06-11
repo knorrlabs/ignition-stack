@@ -1,9 +1,9 @@
 ---
-title: Hub-and-spoke profile
+title: Hub-and-spoke architecture
 description: One central hub gateway plus N Edge spoke gateways, with a RAM advisory on the spoke count.
 ---
 
-# Hub-and-spoke profile
+# Hub-and-spoke architecture
 
 One central hub gateway plus N spoke gateways. Spokes are lightweight and deployed close to the data, so they default to the Edge edition; the hub aggregates them. The spoke count drives a RAM advisory so a large demo does not quietly outgrow the host.
 
@@ -38,8 +38,8 @@ The wizard surfaces the estimate against available memory so the cost is visible
 ## Run it
 
 ```sh
-ignition-stack init demo --profile hub-and-spoke --spokes 3
-ignition-stack init big-demo --profile hub-and-spoke --spokes 12 --force
+ignition-stack init demo --arch hub-and-spoke --spokes 3
+ignition-stack init big-demo --arch hub-and-spoke --spokes 12 --force
 ```
 
 The second command crosses the red tier, so `--force` is required to proceed non-interactively.

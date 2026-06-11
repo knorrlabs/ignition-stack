@@ -17,7 +17,7 @@ description: The pipeline that turns your answers into a runnable project tree, 
 
 ```mermaid
 graph TD
-  A["Your answers: profile, database, services, modules"] --> B["Build ProjectConfig"]
+  A["Your answers: architecture, database, services, modules"] --> B["Build ProjectConfig"]
   B --> C["Resolve dependencies"]
   C --> D["Copy static assets and overlay seeds"]
   D --> E["Render docker-compose.yaml"]
@@ -91,7 +91,7 @@ Modules attached to a gateway append `GATEWAY_MODULES_ENABLED`, `ACCEPT_MODULE_L
 
 ## Golden tests
 
-Every supported combination has a golden snapshot under `tests/golden/<profile>/`. Engine changes that affect output text fail the test with a unified diff; an intentional change is committed by re-running the suite with `UPDATE_GOLDENS=1`.
+Every supported combination has a golden snapshot under `tests/golden/architectures/<slug>/`. Engine changes that affect output text fail the test with a unified diff; an intentional change is committed by re-running the suite with `UPDATE_GOLDENS=1`.
 
 The goldens cover:
 

@@ -4,7 +4,7 @@
 [![Docs](https://github.com/ia-eknorr/ignition-stack/actions/workflows/docs.yml/badge.svg)](https://github.com/ia-eknorr/ignition-stack/actions/workflows/docs.yml)
 [![Documentation](https://img.shields.io/badge/docs-ia--eknorr.github.io-blue)](https://ia-eknorr.github.io/ignition-stack/)
 
-CLI that generates ready-to-run Docker Compose stacks for Ignition 8.3 SCADA demos and SE engagements. Picks an architecture profile, asks a few questions, writes a self-contained project with a hand-readable compose file, env, file-config seed resources, and a `POST-SETUP.md` listing only what could not be pre-seeded.
+CLI that generates ready-to-run Docker Compose stacks for Ignition 8.3 SCADA demos and SE engagements. Picks a system architecture, asks a few questions, writes a self-contained project with a hand-readable compose file, env, file-config seed resources, and a `POST-SETUP.md` listing only what could not be pre-seeded.
 
 See [`docs/docs/reference/seeding-matrix.md`](docs/docs/reference/seeding-matrix.md) for which Ignition 8.3 connection types can be provisioned from the filesystem and env on a live 8.3.6 gateway. Full documentation lives in the [`docs/`](docs/) Docusaurus site.
 
@@ -39,10 +39,10 @@ Everything that ships in the generated project is hand-readable: `docker-compose
 
 | Command | What it does |
 | --- | --- |
-| `init <name>` | Generate a project at `./<name>/` from a profile and a few prompts. |
+| `init <name>` | Generate a project at `./<name>/` from an architecture and a few prompts. |
 | `modules` | Download, verify, and manage the `.modl` / JDBC catalog. |
 | `reset` | Re-run generation from an SE-demo project's recorded config. |
-| `switch-profile` | Reshape an SE-demo project under a different profile. |
+| `switch-arch` | Reshape an SE-demo project under a different architecture. |
 | `wipe` | Remove this project's containers and volumes only. |
 
 See the [CLI reference](docs/docs/reference/cli.md) for every command, argument, and option.

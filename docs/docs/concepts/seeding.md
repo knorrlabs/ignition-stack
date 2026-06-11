@@ -26,7 +26,7 @@ Because a secret is referenced rather than embedded, the generator can seed the 
 
 ## What lands in POST-SETUP.md
 
-`POST-SETUP.md` is generated alongside the stack and lists only the steps that could not be pre-seeded. A standalone Postgres stack has nothing to defer, so its `POST-SETUP.md` says exactly that. A stack with an MQTT broker or Keycloak carries the handful of UI steps those services still require, and each [service page](../services/index.md) spells out which connections it defers.
+`POST-SETUP.md` is generated alongside the stack and lists only the steps that could not be pre-seeded. A basic Postgres stack has nothing to defer, so its `POST-SETUP.md` says exactly that. A stack with an MQTT broker or Keycloak carries the handful of UI steps those services still require, and each [service page](../services/index.md) spells out which connections it defers.
 
 This keeps the manual surface honest: the file is empty when nothing is manual, and when it is non-empty, every line is a step the tooling genuinely could not take for you.
 

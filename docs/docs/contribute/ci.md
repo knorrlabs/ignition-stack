@@ -12,7 +12,7 @@ Two GitHub Actions workflows guard the project on every change: `ci.yml` and `do
 The `test` job runs a matrix across `macos-latest`, `ubuntu-latest`, and `windows-latest`. On each OS it:
 
 1. Installs the CLI with `uv sync --extra dev`.
-2. Runs `ignition-stack init` for a standalone project, so the installed console script is exercised, not just imported.
+2. Runs `ignition-stack init` for a basic project, so the installed console script is exercised, not just imported.
 3. Runs the full golden test suite with `uv run --extra dev pytest`.
 
 The matrix uses `fail-fast: false` so a Windows-only break still reports alongside the macOS and Linux results instead of cancelling them.
@@ -28,7 +28,7 @@ The Windows job adds one more explicit step that re-generates a project and fail
 
 ## `ci.yml`: Linux compose smoke
 
-The `compose-smoke` job runs only on `ubuntu-latest`. It generates a standalone + Postgres project, runs `docker compose up -d`, and polls `http://localhost:9088/StatusPing` until the gateway reports `"state":"RUNNING"`. If the gateway never reaches RUNNING within the timeout, the job prints the compose logs and fails the build. It always tears the stack down with `docker compose down -v`, including its volumes.
+The `compose-smoke` job runs only on `ubuntu-latest`. It generates a basic + Postgres project, runs `docker compose up -d`, and polls `http://localhost:9088/StatusPing` until the gateway reports `"state":"RUNNING"`. If the gateway never reaches RUNNING within the timeout, the job prints the compose logs and fails the build. It always tears the stack down with `docker compose down -v`, including its volumes.
 
 This proves the generated stack boots a real gateway with no UI prompts, which is the whole point of the env-driven commissioning and file seeding.
 
