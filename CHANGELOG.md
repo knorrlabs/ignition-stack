@@ -8,6 +8,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Wizard progress breadcrumb.** A one-line `[N/M] label › label › …`
+  header is printed above each prompt so users know their position in the
+  flow and how many questions remain. The counter and total are computed from
+  the *applicable* steps for the current architecture (profile-dependent steps
+  such as spoke count and network split are excluded from the total until the
+  architecture answer makes them relevant), so the total updates correctly
+  when the user backs up and changes the architecture selection. The trail
+  elides the middle with `…` when it would exceed 72 characters, always
+  keeping the first completed step and the current step visible.
+
 - **Services are now a first-class stage in the main wizard flow.** After
   exposure and before the summary, the wizard loops "Add a service?": pick from
   the kind-grouped catalog, choose where it goes, answer only the questions that
