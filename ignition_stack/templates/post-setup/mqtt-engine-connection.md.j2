@@ -35,8 +35,10 @@ What to check:
   the live Sparkplug topics (`spBv1.0/{{ project_name }}/...`).
 
 > **Two trial caveats (demo posture).** The Cirrus Transmission/Engine modules
-> run on Ignition's ~2-hour platform trial - a gateway/container restart resets
-> it. The {{ mqtt.broker }} broker itself needs an active license to open its
+> run on Ignition's ~2-hour platform trial. When it lapses, the reliable
+> reset is the **Reset Trial** button in each gateway UI's trial banner (free
+> and unlimited); a container restart is not dependable - the trial state
+> lives in the data volume and restart behavior proved inconsistent in testing. The {{ mqtt.broker }} broker itself needs an active license to open its
 > MQTT listener; this stack's `{{ mqtt.broker }}-trial` init container starts the
 > trial automatically over the broker's REST API on every `up`. For a real
 > deployment, set a `LICENSE_TYPE` / license env on the broker and drop the
@@ -53,8 +55,9 @@ identities so you only have to copy them in. The broker endpoint is
 `{{ mqtt.broker_url }}` (reachable from each gateway container by the broker's
 compose service name).
 
-> The Cirrus Link Transmission/Engine modules run a ~2-hour trial that resets on
-> every gateway restart, so this loop demos with no license.
+> The Cirrus Link Transmission/Engine modules run on Ignition's ~2-hour trial,
+> so this loop demos with no license. When it lapses, click **Reset Trial** in
+> the gateway UI's trial banner (a container restart is not a dependable reset).
 
 The Cirrus modules install from the project's `modules/cache/`, which starts
 empty. Populate it once before the modules will load, then bring the stack up:
