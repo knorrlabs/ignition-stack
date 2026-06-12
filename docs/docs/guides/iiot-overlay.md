@@ -53,7 +53,7 @@ For a `hub-and-spoke` stack with `--iiot` (three spokes, hub + broker on the sam
 - The broker service is added to the stack's service registry.
 - Each spoke gets the **MQTT Transmission** module (`.modl` in `user-lib/modules/`, `ACCEPT_MODULE_LICENSES` and `ACCEPT_MODULE_CERTS` env vars set).
 - The hub gets the **MQTT Engine** module.
-- Both modules are pinned to **Cirrus Link 5.0.3** with fixed download URLs.
+- Both modules are pinned with fixed download URLs in `modules.yaml`.
 - **Sparkplug identity seeds** are written for every Transmission gateway:
   - Group ID = the project name
   - Edge Node ID = the gateway name

@@ -25,4 +25,4 @@ Add n8n as a service in the [wizard's services stage](../guides/wizard.md#the-se
 
 ## Post-setup
 
-None for n8n itself. Setting `mcp_dropin` adds a post-setup step for the Early-Access MCP module drop-in.
+None for n8n itself, though first-boot owner registration in the n8n UI is required before its API is usable (the generated `POST-SETUP.md` Connections row notes this). Setting `mcp_dropin` adds a post-setup step for the Early-Access MCP module drop-in.

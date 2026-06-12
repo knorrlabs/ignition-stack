@@ -17,7 +17,7 @@ Both land on the same stored shape — a `disable_builtins` list the generator i
 The module step pre-checks the curated default set. Decline the **Customize the enabled gateway modules?** prompt to take it as-is, or accept it to open a checkbox with the default set already selected:
 
 - The default-enabled modules are checked; everything else is unchecked but one space-bar away.
-- The **JDBC driver follows your database choice** — pick Postgres and the PostgreSQL driver is pre-checked, pick MariaDB or MySQL and the MariaDB driver is (MySQL connects over the wire-compatible MariaDB driver; the catalog ships no MySQL-specific one). Mongo and "no database" pre-check no driver.
+- The **JDBC driver follows your database choice** — pick Postgres and the PostgreSQL driver is pre-checked, pick MariaDB or MySQL and the MariaDB driver is pre-checked (MySQL connects over the wire-compatible MariaDB driver; the catalog ships no MySQL-specific one). Mongo and "no database" pre-check no driver.
 
 Whatever you leave unselected becomes `disable_builtins`. The summary screen lists the modules that will actually run.
 
@@ -69,7 +69,7 @@ The **Wizard default** column shows what the wizard pre-checks: `on` for the cur
 | `micro800-driver` | Micro800 Driver | — |
 | `mitsubishi-driver` | Mitsubishi Driver | — |
 | `modbus-driver` | Modbus Driver | — |
-| `mssql-jdbc-driver` | MSSQL JDBC Driver | DB-driven |
+| `mssql-jdbc-driver` | MSSQL JDBC Driver | — |
 | `omron-driver` | Omron Driver | — |
 | `opc-ua` | OPC-UA | on |
 | `perspective` | Perspective | on |

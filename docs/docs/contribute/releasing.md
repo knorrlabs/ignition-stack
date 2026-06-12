@@ -13,7 +13,7 @@ A new version reaches users through PyPI: once published, `pipx install ignition
 2. Create a GitHub Release whose tag is the same version prefixed with `v`, for example `v0.2.0`, targeting `main`.
 3. Publishing it triggers `release.yml`. The workflow builds the wheel and sdist, checks the tag matches the built version, and publishes to PyPI.
 
-The tag-versus-version check is deliberate: if the `v0.2.0` tag does not match the version built from `pyproject.toml`, the workflow fails before publishing rather than shipping a package under the wrong number.
+The tag-versus-version check is deliberate: if the `v0.2.0` tag does not match the version baked into the built wheel, the workflow fails before publishing rather than shipping a package under the wrong number.
 
 ## One-time PyPI setup
 
