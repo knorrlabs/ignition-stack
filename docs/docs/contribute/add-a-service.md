@@ -36,8 +36,12 @@ templates/services/<name>/
 | `network` | no | `frontend` or `backend` (default). Which network the service joins when the split is on. |
 | `provides` | no | Capability tags this service satisfies (e.g. `mqtt-broker`). |
 | `requires` | no | Capability tags this service needs; the resolver auto-adds a provider. |
+| `singleton` | no | `true` for kinds the stack runs at most one of (databases, IDPs, brokers); the resolver enforces it within `singleton_scope` (`global` default, or `attached`). |
+| `placement` | no | A `PlacementSpec`; its `never_on_edge` flag marks a service an Edge gateway can't host. |
+| `wires` | no | A `WiresSpec` (or omitted). Only MQTT brokers carry a `wires.mqtt` block, which the IIoT overlay reads to find the Transmission/Engine module identifiers. |
 | `env` | no | Preset `.env` keys mapped to default values this service contributes. |
 | `seeds_gateway_resources` | no | `true` if the service ships `seed/gateway-resources/`. |
+| `connection` | no | A `ConnectionSpec` (`in_network`, `host_port_env`, `credential_env`, `note`) the generator turns into this service's row in the `POST-SETUP.md` Connections reference. |
 | `post_setup` | no | List of `{connection, reason}` items the service cannot pre-seed. |
 
 A minimal broker manifest:

@@ -87,16 +87,15 @@ environment:
   IGNITION_EDITION: edge
 ```
 
-Modules attached to a gateway append `GATEWAY_MODULES_ENABLED`, `ACCEPT_MODULE_LICENSES`, and `ACCEPT_MODULE_CERTS` as comma-separated fully-qualified module identifiers. The engine looks each module up in `modules.yaml` and rejects unknown slugs at render time.
+Modules attached to a gateway append `ACCEPT_MODULE_LICENSES` and `ACCEPT_MODULE_CERTS` as comma-separated fully-qualified module identifiers. `GATEWAY_MODULES_ENABLED` is a strict whitelist emitted only when a built-in is disabled (see [disable built-in modules](../guides/disable-builtins.md)), so stacks without `disable_builtins` never carry it. The engine looks each module up in `modules.yaml` and rejects unknown slugs at render time.
 
 ## Golden tests
 
-Every supported combination has a golden snapshot under `tests/golden/architectures/<slug>/`. Engine changes that affect output text fail the test with a unified diff; an intentional change is committed by re-running the suite with `UPDATE_GOLDENS=1`.
+Every supported combination has a golden snapshot under `tests/golden/`. Engine changes that affect output text fail the test with a unified diff; an intentional change is committed by re-running the suite with `UPDATE_GOLDENS=1`.
 
 The goldens cover:
 
-- `standalone-postgres/` - the basic one-gateway-plus-Postgres baseline (regression contract).
-- `scaleout-skeleton/` - the scale-out shape: two gateways (frontend + backend), network split, frontend running Edge with the `mqtt-engine` module attached.
+- `architectures/<slug>/` - one snapshot per architecture (`basic`, `scale-out`, `hub-and-spoke`, `scale-out-redundant`).
 - `services/<name>/` - one minimal snapshot per catalog service (and per database kind).
 - `combos/` - key combinations: the smoke stack (Postgres + HiveMQ + OPC-UA-sim) and a network-split stack.
 

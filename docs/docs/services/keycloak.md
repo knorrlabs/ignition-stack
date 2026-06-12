@@ -38,7 +38,7 @@ Two halves cooperate:
 
 To keep the OIDC issuer and redirect URLs consistent across the browser and the gateway's back-channel, the Keycloak container pins its frontend hostname (`KC_HOSTNAME=http://localhost:${KEYCLOAK_HTTP_PORT}`, with `KC_HOSTNAME_BACKCHANNEL_DYNAMIC=true`). Browser-facing endpoints (authorize, logout, issuer) use the published `localhost:8081`; the gateway reaches the token, JWKS, and userinfo endpoints over the Docker network at `keycloak:8080`.
 
-This is a demo posture: the client secret is a fixed value shipped to every user, matching the bundled `admin` / `ignition` credentials. Rotate it in Keycloak and re-seed for any real deployment, and front Keycloak with HTTPS. If you change `KEYCLOAK_HTTP_PORT`, update the `authorizationEndpoint` / `endSessionEndpoint` / `providerId` URLs in the seeded `identity-provider/keycloak/config.json` to match.
+This is a demo posture: the client secret is a fixed value shipped to every user, alongside the bundled Keycloak admin (`admin` / `admin`) and demo user (`demo` / `demo`). Rotate it in Keycloak and re-seed for any real deployment, and front Keycloak with HTTPS. If you change `KEYCLOAK_HTTP_PORT`, update the `authorizationEndpoint` / `endSessionEndpoint` / `providerId` URLs in the seeded `identity-provider/keycloak/config.json` to match.
 
 ## Post-setup
 
