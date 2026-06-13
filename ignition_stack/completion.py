@@ -109,3 +109,18 @@ def complete_disable_builtin(incomplete: str) -> list[tuple[str, str]]:
     except Exception:
         return []
     return [(m.slug, m.name) for m in modules if m.slug.startswith(incomplete)]
+
+
+def complete_registry_module(incomplete: str) -> list[str]:
+    """User-registry module slugs matching the typed prefix (for `create --module`).
+
+    Reads the global registry; degrades to no suggestions on any error so a TAB
+    never breaks the shell line.
+    """
+    try:
+        from ignition_stack.catalog.registry import RegistryStore
+
+        names = {e.name for e in RegistryStore().load().entries}
+    except Exception:
+        return []
+    return sorted(n for n in names if n.startswith(incomplete))

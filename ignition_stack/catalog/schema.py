@@ -108,7 +108,7 @@ class ModuleEntry(_EntryBase):
         str,
         Field(
             min_length=1,
-            pattern=r"^[a-z0-9.]+$",
+            pattern=r"^[a-z0-9.-]+$",
             description=(
                 "Fully-qualified module identifier (e.g. " "'com.cirruslink.mqtt.engine.gateway'). Used verbatim in " "ACCEPT_MODULE_LICENSES and ACCEPT_MODULE_CERTS. NOT a path."
             ),
