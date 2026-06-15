@@ -58,7 +58,7 @@ This stage and the composer share one action implementation, so attaching a serv
 The summary recaps the resolved stack and gates the write:
 
 ```text
-? Ready to generate?
+? Review
 > Generate the project
   Preview the resolved config (dry-run)
   Tweak per-gateway services in the composer
@@ -115,7 +115,7 @@ A heterogeneous stack: the hub runs EMQX (Engine) and Keycloak, `spoke-1` shares
 ? Customize the enabled gateway modules?  No
 ? Expose gateways via            Host ports
 ? Add a service?                 No
-? Ready to generate?             Tweak per-gateway services in the composer
+? Review                         Tweak per-gateway services in the composer
 
 ? Composer action?  Set a gateway's edition (standard / edge)
 ? Set edition on which gateway?  spoke-1
