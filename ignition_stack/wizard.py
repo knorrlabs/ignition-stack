@@ -806,7 +806,7 @@ def _ask_summary_action(prompter: Prompter, summary: list[str]) -> Any:
     """
     block = "\n".join(summary)
     return prompter.select(
-        f"Ready to generate?\n\n{block}\n",
+        f"Review\n\n{block}\n",
         [
             ("generate", "Generate the project"),
             ("preview", "Preview the resolved config (dry-run)"),
