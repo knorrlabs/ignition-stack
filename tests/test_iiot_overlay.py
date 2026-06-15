@@ -140,7 +140,7 @@ def test_broker_without_wires_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(loader, "load_all_services", lambda: fake_catalog)
 
     config = ProjectConfig(name="x")
-    with pytest.raises(ValueError, match="no wires.mqtt block"):
+    with pytest.raises(ValueError, match=r"no wires\.mqtt block"):
         apply_iiot(config, "nowire")
 
 
