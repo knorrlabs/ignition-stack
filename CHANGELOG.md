@@ -4,6 +4,35 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-06-15
+
+### Added
+
+- **Local module version manager (`ignition-stack modules add`).** Register
+  third-party Ignition modules from a URL or a local path into a global,
+  versioned cache. The identifier, version, required Ignition floor, line,
+  dependencies, and license need are read straight from the artifact's
+  `module.xml`, and the sha256 is computed on add. `modules versions` and
+  `modules remove` manage the cached set, and `modules list` now shows the
+  local registry alongside the bundled catalog. Module compatibility is a
+  minimum Ignition version scoped to a major line (8.1 and 8.3 ship as
+  separate artifacts), so the cache keys on identifier, version, and line, and
+  multiple versions across both lines coexist.
+- **Pre-install registry modules with `create --module <name[@version]>`.**
+  Attach a registered module to every gateway, resolved to the newest build
+  compatible with the stack's Ignition version, or pinned to an exact version
+  with `@`. The resolved version is recorded in the project config, the `.modl`
+  is copied into the project, and the gateway is wired with the volume mount,
+  `ACCEPT_MODULE_LICENSES` / `ACCEPT_MODULE_CERTS`, and the
+  `GATEWAY_MODULES_ENABLED` whitelist — force-enabling the module's built-in
+  dependencies so a disabled one can't quarantine it.
+
+### Fixed
+
+- **The wizard's summary screen is titled "Review."** It previously read
+  "Ready to generate?", which named the step plan's sign-posted finish line
+  ("Review") two different ways; the titles now match.
+
 ## [0.8.0] - 2026-06-13
 
 ### Changed
