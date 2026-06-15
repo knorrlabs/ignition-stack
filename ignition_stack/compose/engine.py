@@ -363,7 +363,7 @@ def _ignition_context(ctx: dict[str, object], config: ProjectConfig, multi: bool
         # that disabling EVERY built-in emits an empty whitelist - which quarantines
         # all, matching intent - instead of omitting the var and re-enabling all.
         "disable_active": bool(gw.disable_builtins),
-        "modules_enabled": _modules_enabled_for(gw, ctx["module_identifiers"]),  # type: ignore[arg-type]
+        "modules_enabled": _modules_enabled_for(gw, ctx["module_identifiers"], _extra_depends_for(gw, config)),  # type: ignore[arg-type]
         "database_service": _gateway_database_service(gw, config),
         "networks": ctx["networks"],
         "proxy": _proxy_labels(gw, config),
@@ -441,7 +441,25 @@ def _module_identifiers_for(gw: GatewayConfig, catalog: Catalog | None) -> str:
     return ",".join(identifiers)
 
 
-def _modules_enabled_for(gw: GatewayConfig, module_identifiers: str) -> str:
+def _extra_depends_for(gw: GatewayConfig, config: ProjectConfig) -> str:
+    """Dependency identifiers of the user-registry modules attached to this gateway.
+
+    A module's ``<depends>`` built-ins must stay in the whitelist even if the
+    user disabled one (e.g. a charting module needs Perspective). Folding them
+    into GATEWAY_MODULES_ENABLED means an attached module never quarantines its
+    own dependency. Empty unless ``--module`` was used with a disabled dependency.
+    """
+    deps: list[str] = []
+    for em in config.extra_modules:
+        if em.name not in gw.modules:
+            continue
+        for dep in em.depends:
+            if dep and dep not in deps:
+                deps.append(dep)
+    return ",".join(deps)
+
+
+def _modules_enabled_for(gw: GatewayConfig, module_identifiers: str, extra_depends: str = "") -> str:
     """The GATEWAY_MODULES_ENABLED whitelist VALUE for this gateway.
 
     GATEWAY_MODULES_ENABLED is a strict whitelist: if set, every built-in not
@@ -459,7 +477,7 @@ def _modules_enabled_for(gw: GatewayConfig, module_identifiers: str) -> str:
     if not gw.disable_builtins:
         return ""
     enabled = default_builtin_catalog().identifiers_excluding(gw.disable_builtins)
-    added = [ident for ident in module_identifiers.split(",") if ident]
+    added = [ident for ident in (*module_identifiers.split(","), *extra_depends.split(",")) if ident]
     enabled.extend(ident for ident in added if ident not in enabled)
     return ",".join(enabled)
 

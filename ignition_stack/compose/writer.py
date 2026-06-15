@@ -20,16 +20,17 @@ the container chokes on CR bytes.
 
 from __future__ import annotations
 
+import shutil
 from importlib import resources
 from importlib.resources.abc import Traversable
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from jinja2 import Environment, PackageLoader, StrictUndefined
 
 from ignition_stack.catalog.loader import CatalogLoadError, load_catalog
-from ignition_stack.catalog.schema import Catalog
+from ignition_stack.catalog.schema import Catalog, ModuleEntry
 from ignition_stack.compose.engine import render_compose
-from ignition_stack.config.schema import ProjectConfig, ServiceInstance
+from ignition_stack.config.schema import ExtraModule, ProjectConfig, ServiceInstance
 from ignition_stack.postsetup import generate_post_setup
 from ignition_stack.record import write_record
 from ignition_stack.services.loader import load_all_services, service_dir
@@ -93,6 +94,7 @@ def write_project(config: ProjectConfig, target_dir: Path) -> list[Path]:
     written.extend(_overlay_gateway_resources(config, target_dir))
     written.extend(_write_redundancy_seeds(config, target_dir))
     _ensure_modules_cache_dir(config, target_dir)
+    _populate_extra_module_cache(config, target_dir)
     written.append(_write_compose(config, target_dir))
     written.append(_write_env(config, target_dir))
     written.append(_write_makefile(config, target_dir))
@@ -296,6 +298,27 @@ def _ensure_modules_cache_dir(config: ProjectConfig, target_dir: Path) -> None:
     (target_dir / "modules" / "cache").mkdir(parents=True, exist_ok=True)
 
 
+def _populate_extra_module_cache(config: ProjectConfig, target_dir: Path) -> None:
+    """Copy each user-registry module's cached .modl into the project cache.
+
+    Bundled modules are fetched on demand by `modules download`; user-registry
+    modules have no public URL, so their already-cached blob is copied in here so
+    the generated project is self-contained. A missing source is skipped rather
+    than fatal - the cache may have been pre-populated, or the module re-added
+    later with `modules add`.
+    """
+    if not config.extra_modules:
+        return
+    cache = target_dir / "modules" / "cache"
+    cache.mkdir(parents=True, exist_ok=True)
+    for em in config.extra_modules:
+        dst = cache / PurePosixPath(em.install_path).name
+        src = Path(em.source_cache_path)
+        if dst.exists() or not src.is_file():
+            continue
+        shutil.copy2(src, dst)
+
+
 def _copy_static_tree(config: ProjectConfig, target_dir: Path) -> list[Path]:
     """Copy the static portion of the project tree.
 
@@ -345,17 +368,38 @@ def _write_compose(config: ProjectConfig, target_dir: Path) -> Path:
 
 
 def _maybe_load_catalog(config: ProjectConfig) -> Catalog | None:
-    """Load the bundled catalog only when a gateway actually needs it.
+    """Load the bundled catalog (merged with any user-registry modules) when needed.
 
-    Saves a parse + I/O for the common module-free single-gateway case
-    and keeps test fixtures from needing modules.yaml to be reachable.
+    Saves a parse + I/O for the common module-free single-gateway case. When the
+    project carries ``extra_modules`` (resolved from the user registry by
+    ``create --module``), they are appended as synthetic catalog entries so the
+    engine resolves their slugs exactly like bundled ones.
     """
     if not any(gw.modules for gw in config.gateways):
         return None
+    synthetic = [_extra_module_entry(em) for em in config.extra_modules]
     try:
-        return load_catalog()
+        base = load_catalog()
     except CatalogLoadError as exc:
-        raise RuntimeError("modules referenced in project config but modules.yaml could not be loaded") from exc
+        if not synthetic:
+            raise RuntimeError("modules referenced in project config but modules.yaml could not be loaded") from exc
+        return Catalog(version=1, entries=synthetic)
+    if not synthetic:
+        return base
+    return Catalog(version=base.version, entries=[*base.entries, *synthetic])
+
+
+def _extra_module_entry(em: ExtraModule) -> ModuleEntry:
+    """A synthetic catalog entry for a user-registry module (for the engine's lookups)."""
+    return ModuleEntry(
+        name=em.name,
+        vendor="third-party",
+        ignition_versions=["registry"],
+        module_identifier=em.module_identifier,
+        install_path=em.install_path,
+        sha256=em.sha256,
+        requires_license_env=em.requires_license_env,
+    )
 
 
 def _write_env(config: ProjectConfig, target_dir: Path) -> Path:

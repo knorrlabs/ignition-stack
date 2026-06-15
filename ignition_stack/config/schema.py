@@ -491,6 +491,28 @@ class ReverseProxyConfig(BaseModel):
         return stripped.removeprefix("./")
 
 
+class ExtraModule(BaseModel):
+    """A third-party module resolved from the user registry, baked into a project.
+
+    ``create --module`` resolves a registry slug against the stack's Ignition
+    version and records the pinned result here, so the config round-trips
+    (``--dry-run`` -> ``--from-file``) and the writer can copy the cached
+    ``.modl`` into the project. The compose engine then treats it like a bundled
+    catalog module: the identifier is whitelisted/accepted and the blob mounted.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(description="Registry slug; also the gateway `modules` entry.")
+    module_identifier: str = Field(description="FQ id, verbatim in GATEWAY_MODULES_ENABLED / ACCEPT_MODULE_*.")
+    module_version: str = Field(description="Pinned resolved module version.")
+    install_path: str = Field(description="In-container destination under user-lib/modules/.")
+    sha256: str = Field(description="sha256 of the cached artifact.")
+    requires_license_env: str | None = Field(default=None, description="Env var holding the license key; None for free modules.")
+    depends: list[str] = Field(default_factory=list, description="Dependency identifiers force-enabled in the whitelist.")
+    source_cache_path: str = Field(description="Absolute path to the global-cache blob the writer copies into the project.")
+
+
 class ProjectConfig(BaseModel):
     """Resolved configuration for a single generated project."""
 
@@ -558,6 +580,16 @@ class ProjectConfig(BaseModel):
             "Informational - the compose engine reads from the resolved "
             "fields, not this slug - but lets generated files (header "
             "comment, config records) name the architecture they came from."
+        ),
+    )
+
+    extra_modules: list[ExtraModule] = Field(
+        default_factory=list,
+        description=(
+            "Third-party modules resolved from the user registry by "
+            "`create --module`, pinned to an exact version. The writer copies "
+            "each cached .modl into modules/cache/ and the compose engine wires "
+            "it like a bundled module. Empty (default) for stacks that add none."
         ),
     )
 

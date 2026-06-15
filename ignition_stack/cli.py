@@ -28,11 +28,13 @@ from ignition_stack.completion import (
     complete_iiot_broker,
     complete_output_format,
     complete_redundant_role,
+    complete_registry_module,
     complete_reverse_proxy,
 )
 from ignition_stack.compose import write_project
 from ignition_stack.config import (
     ConfigIOError,
+    ExtraModule,
     ProjectConfig,
     ReverseProxyConfig,
     dump_config,
@@ -197,6 +199,18 @@ def create(
         ),
         autocompletion=complete_disable_builtin,
     ),
+    module: list[str] = typer.Option(  # noqa: B008 - Typer pattern
+        [],
+        "--module",
+        help=(
+            "Third-party module from your local registry to pre-install on every "
+            "gateway (repeatable), e.g. --module embr-charts or "
+            "--module embr-charts@6.0.0. Resolved to the newest build compatible "
+            "with the stack's Ignition version; pin an exact version with @. "
+            "Register modules first with `ignition-stack modules add`."
+        ),
+        autocompletion=complete_registry_module,
+    ),
     iiot: bool = typer.Option(
         False,
         "--iiot/--no-iiot",
@@ -291,6 +305,9 @@ def create(
             iiot=iiot,
             iiot_broker=iiot_broker,
         )
+
+    if module:
+        config = _attach_registry_modules(config, module)
 
     if dry_run:
         # Dump the resolved config (the writer resolves too, so this is exactly
@@ -433,6 +450,69 @@ def _run_wizard_or_exit(name: str) -> ProjectConfig:
     except KeyboardInterrupt as exc:
         console.print("[yellow]cancelled[/yellow]")
         raise typer.Exit(code=130) from exc
+
+
+def _attach_registry_modules(config: ProjectConfig, specs: list[str]) -> ProjectConfig:
+    """Resolve each ``--module`` spec against the stack's Ignition version and bake it in.
+
+    Each resolved module is pinned into ``config.extra_modules`` (so the recorded
+    config and the ``--from-file`` round-trip carry the exact version) and its
+    slug is attached to every gateway - which is what makes the compose engine
+    mount the cached .modl and whitelist/accept its identifier.
+    """
+    from ignition_stack.catalog.registry import RegistryError, RegistryStore
+    from ignition_stack.catalog.resolver import (
+        ResolutionError,
+        candidates,
+        ignition_line_of,
+        resolve,
+        satisfies,
+    )
+
+    ignition_version = config.ignition_image.rsplit(":", 1)[-1]
+    store = RegistryStore()
+    try:
+        entries = store.load().entries
+    except RegistryError as exc:
+        console.print(f"[red]error[/red]: {exc}")
+        raise typer.Exit(code=1) from exc
+
+    resolved_slugs: list[str] = []
+    for spec in specs:
+        name, _, want_version = spec.partition("@")
+        try:
+            if want_version:
+                matches = [e for e in candidates(entries, name) if e.module_version == want_version and satisfies(e, ignition_version)]
+                if not matches:
+                    line = ignition_line_of(ignition_version)
+                    raise ResolutionError(f"'{name}@{want_version}' is not registered for Ignition {ignition_version} (line {line}); see `ignition-stack modules versions {name}`")
+                entry = matches[0]
+            else:
+                entry = resolve(entries, name, ignition_version)
+        except ResolutionError as exc:
+            console.print(f"[red]error[/red]: {exc}")
+            raise typer.Exit(code=2) from exc
+
+        config.extra_modules.append(
+            ExtraModule(
+                name=entry.name,
+                module_identifier=entry.module_identifier,
+                module_version=entry.module_version,
+                install_path=entry.install_path,
+                sha256=entry.sha256,
+                requires_license_env=entry.requires_license_env,
+                depends=list(entry.depends),
+                source_cache_path=str(store.cache_path(entry)),
+            )
+        )
+        resolved_slugs.append(entry.name)
+        console.print(f"[green]module[/green] {entry.name} -> {entry.module_version} (Ignition {ignition_version}, line {entry.ignition_line})")
+
+    for gw in config.gateways:
+        for slug in resolved_slugs:
+            if slug not in gw.modules:
+                gw.modules.append(slug)
+    return config
 
 
 if __name__ == "__main__":  # pragma: no cover

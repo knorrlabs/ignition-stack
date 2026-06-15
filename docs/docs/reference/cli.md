@@ -52,6 +52,7 @@ ignition-stack create [OPTIONS] NAME
 - `--edge-role` `TEXT`: Gateway role that runs the Ignition Edge edition. Scale-out runs all gateways standard by default; hub-and-spoke defaults its spokes to Edge. Pass 'none' to disable the architecture's edge default; pass a role name ('frontend', 'hub', 'gateway', ...) to opt that role in.
 - `--redundant` `TEXT`: Make a single gateway role redundant, expanding it into a master + backup pair (e.g. 'backend' for scale-out, 'hub' for hub-and-spoke, 'gateway' for basic). Frontends and spokes are replicated, not paired, and are rejected.
 - `--disable-builtin` `TEXT` (default `[]`): Built-in IA module to turn off on every gateway (repeatable), e.g. --disable-builtin vision --disable-builtin sfc. Emits a GATEWAY_MODULES_ENABLED whitelist of everything else. Slugs tab-complete; an unknown slug is rejected with the full valid list.
+- `--module` `TEXT` (default `[]`): Third-party module from your local registry to pre-install on every gateway (repeatable), e.g. --module embr-charts or --module embr-charts@6.0.0. Resolved to the newest build compatible with the stack's Ignition version; pin an exact version with @. Register modules first with `ignition-stack modules add`.
 - `--iiot`, `--no-iiot` (flag): Overlay an MQTT/Sparkplug IIoT pipeline: add a broker and wire the Cirrus Link Transmission/Engine modules across the gateways by role (spokes/frontends transmit, hub/backend run Engine; a single gateway runs both). Defaults the broker to 'chariot'.
 - `--iiot-broker` `TEXT`: MQTT broker slug the IIoT overlay wires to (implies --iiot). Must be a catalog 'mqtt-broker' kind (e.g. 'chariot', 'emqx', 'hivemq'). Defaults to 'chariot' when --iiot is given without this flag.
 - `--from-file`, `-f` `PATH`: Build from a saved config file (YAML or JSON, as dumped by --dry-run) instead of an architecture or the wizard. Mutually exclusive with --arch. The project name argument overrides the file's name.
@@ -66,6 +67,28 @@ Inspect and prepare the module + driver catalog.
 ```text
 ignition-stack modules COMMAND [ARGS]...
 ```
+
+### `ignition-stack modules add`
+
+Register a third-party ``.modl`` in the local registry.
+
+Metadata (id, version, Ignition floor, line, dependencies, license-need) is
+read from the artifact's ``module.xml``; the sha256 is computed on add
+(trust-on-first-use). The original file/URL is never modified - a temp copy
+is what lands in the global cache.
+
+```text
+ignition-stack modules add [OPTIONS] SOURCE
+```
+
+**Arguments**
+
+- `SOURCE` (required): URL (http/https) or local path of a .modl to register.
+
+**Options**
+
+- `--name` `TEXT`: Override the auto-derived slug.
+- `--license-env` `TEXT`: Env var holding the license key, for a non-free module.
 
 ### `ignition-stack modules download`
 
@@ -99,6 +122,22 @@ ignition-stack modules list [OPTIONS]
 - `--catalog` `PATH`: Path to a modules.yaml. Defaults to the bundled catalog.
 - `--ignition-version` `TEXT`: Filter to entries verified for this exact version.
 
+### `ignition-stack modules remove`
+
+Remove a module (and its cached blob) from the local registry.
+
+```text
+ignition-stack modules remove [OPTIONS] NAME
+```
+
+**Arguments**
+
+- `NAME` (required): Module slug or identifier to remove.
+
+**Options**
+
+- `--version` `TEXT`: Remove only this exact version; omit to remove every version.
+
 ### `ignition-stack modules validate`
 
 Confirm schema integrity, pinned shas, and (optionally) URL reachability.
@@ -111,3 +150,15 @@ ignition-stack modules validate [OPTIONS]
 
 - `--catalog` `PATH`: Path to a modules.yaml. Defaults to the bundled catalog.
 - `--skip-network` (flag): Only validate the schema; skip URL reachability.
+
+### `ignition-stack modules versions`
+
+Show every cached version of a module and the Ignition line each satisfies.
+
+```text
+ignition-stack modules versions NAME
+```
+
+**Arguments**
+
+- `NAME` (required): Module slug or identifier to inspect.
