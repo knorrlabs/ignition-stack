@@ -22,7 +22,7 @@ Trusted Publishing has to be authorized once on PyPI before the first release. B
 1. Sign in to [PyPI](https://pypi.org/) and open **Your account → Publishing**.
 2. Under **Add a new pending publisher**, fill in:
    - **PyPI project name:** `ignition-stack`
-   - **Owner:** `ia-eknorr`
+   - **Owner:** `knorrlabs`
    - **Repository name:** `ignition-stack`
    - **Workflow name:** `release.yml`
    - **Environment name:** `pypi`
@@ -34,4 +34,4 @@ The `pypi` environment named above is also a GitHub Actions environment. Leave i
 
 ## Installing from source
 
-Publishing to PyPI does not replace the from-source path. `pipx install git+https://github.com/ia-eknorr/ignition-stack.git` still installs straight from `main`, and `@<branch>` still installs a branch, which is the quickest way to try an unreleased change.
+Publishing to PyPI does not replace the from-source path. `pipx install git+https://github.com/knorrlabs/ignition-stack.git` still installs straight from `main`, and `@<branch>` still installs a branch, which is the quickest way to try an unreleased change.

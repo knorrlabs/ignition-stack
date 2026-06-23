@@ -78,7 +78,7 @@ The `backend` is the single workhorse, so it is the role you pair for failover. 
 
 ## Reverse proxy
 
-`--reverse-proxy external` joins a Traefik proxy you already run; `--reverse-proxy scaffold` also lays down the [ia-eknorr/traefik-reverse-proxy](https://github.com/ia-eknorr/traefik-reverse-proxy) README under `reverse-proxy/` (override the location with `--proxy-path`). Omit it for plain host-port mapping. See the [reverse-proxy guide](../guides/reverse-proxy.md).
+`--reverse-proxy external` joins a Traefik proxy you already run; `--reverse-proxy scaffold` also lays down the [etknorr/traefik-reverse-proxy](https://github.com/etknorr/traefik-reverse-proxy) README under `reverse-proxy/` (override the location with `--proxy-path`). Omit it for plain host-port mapping. See the [reverse-proxy guide](../guides/reverse-proxy.md).
 
 ## When to use it
 

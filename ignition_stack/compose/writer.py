@@ -486,16 +486,16 @@ def _static_root() -> Traversable:
 
 
 _TRAEFIK_README = """\
-# Reverse proxy: ia-eknorr/traefik-reverse-proxy
+# Reverse proxy: etknorr/traefik-reverse-proxy
 
 This project's wizard offered to install the preferred Traefik reverse
-proxy here. The repo lives at https://github.com/ia-eknorr/traefik-reverse-proxy
+proxy here. The repo lives at https://github.com/etknorr/traefik-reverse-proxy
 and is **not** cloned automatically (the CLI never bundles a proxy
 silently). Install it manually:
 
 ```sh
 cd {path}
-git clone https://github.com/ia-eknorr/traefik-reverse-proxy.git .
+git clone https://github.com/etknorr/traefik-reverse-proxy.git .
 ```
 
 Then read that repo's README for routing and TLS setup. The gateway is

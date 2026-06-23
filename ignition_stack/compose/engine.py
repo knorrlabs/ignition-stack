@@ -53,7 +53,7 @@ if TYPE_CHECKING:
 NETWORK_FRONTEND = "frontend"
 NETWORK_BACKEND = "backend"
 
-# Domain the ia-eknorr/traefik-reverse-proxy default rule resolves on; every
+# Domain the etknorr/traefik-reverse-proxy default rule resolves on; every
 # *.localtest.me name maps to 127.0.0.1, so a generated router rule needs no
 # hosts-file edit. The gateway web port Traefik routes to inside the container.
 PROXY_DOMAIN = "localtest.me"
@@ -272,7 +272,7 @@ def _gateway_context(gw: GatewayConfig, config: ProjectConfig, catalog: Catalog 
 
     if config.reverse_proxy is not None:
         # The gateway must sit on the proxy's external network so Traefik
-        # (which the ia-eknorr/traefik-reverse-proxy binds to that network) can
+        # (which the etknorr/traefik-reverse-proxy binds to that network) can
         # reach port 8088. When network_split is off the gateway otherwise has
         # no explicit networks block and rides the implicit 'default' network
         # where the database lives; naming a network removes it from 'default',
@@ -379,7 +379,7 @@ def _ignition_context(ctx: dict[str, object], config: ProjectConfig, multi: bool
 def _proxy_labels(gw: GatewayConfig, config: ProjectConfig) -> dict[str, object] | None:
     """Traefik routing context for this gateway, or None when not proxied.
 
-    Mirrors what ia-eknorr/traefik-reverse-proxy expects: the provider only
+    Mirrors what etknorr/traefik-reverse-proxy expects: the provider only
     routes containers carrying ``traefik.enable=true`` (its
     EXPOSEDBYDEFAULT=false), so we emit an explicit, project-scoped router
     ``Host`` rule plus the ``loadbalancer.server.port`` that pins Traefik to the

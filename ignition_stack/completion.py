@@ -35,7 +35,7 @@ def complete_edge_role(incomplete: str) -> list[str]:
 
 # Reverse-proxy modes the CLI accepts. Mirrors ReverseProxyConfig.mode:
 # 'external' joins a proxy the user runs; 'scaffold' also lays down the
-# ia-eknorr/traefik-reverse-proxy README. Kept here as the completion vocabulary
+# etknorr/traefik-reverse-proxy README. Kept here as the completion vocabulary
 # since the Literal lives in the pydantic model, not a runtime registry.
 REVERSE_PROXY_VALUES = ("external", "scaffold")
 

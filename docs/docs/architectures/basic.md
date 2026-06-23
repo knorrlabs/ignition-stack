@@ -16,7 +16,7 @@ One Ignition 8.3 gateway plus an optional SQL database — the default starter s
 | Edition | standard, or Edge via `--edge-role gateway` |
 | Default database | [Postgres](../services/postgres.md), with a pre-seeded connection |
 | Network split | off (single bridge network) |
-| Reverse proxy | optional (the wizard can scaffold `ia-eknorr/traefik-reverse-proxy`) |
+| Reverse proxy | optional (the wizard can scaffold `etknorr/traefik-reverse-proxy`) |
 
 The single gateway is named `gateway`, so its per-gateway `.env` keys collapse to the familiar `GATEWAY_*` form.
 

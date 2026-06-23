@@ -9,7 +9,7 @@ Validation criteria:
    message; with ``--force`` it proceeds.
 3. Per-role edition yields IGNITION_EDITION=edge on the chosen role only.
 4. Reverse-proxy prompt: "I already have one" emits a plain host-port
-   mapping; "install Traefik" emits the ia-eknorr/traefik-reverse-proxy
+   mapping; "install Traefik" emits the etknorr/traefik-reverse-proxy
    setup at the chosen location.
 
 Goldens follow the existing ``UPDATE_GOLDENS=1`` convention.
@@ -332,7 +332,7 @@ def test_scale_out_cli_reverse_proxy_scaffold(tmp_path: Path) -> None:
     assert result.exit_code == 0, result.stdout
     readme = tmp_path / "demo" / "reverse-proxy" / "README.md"
     assert readme.is_file()
-    assert "ia-eknorr/traefik-reverse-proxy" in readme.read_text(encoding="utf-8")
+    assert "etknorr/traefik-reverse-proxy" in readme.read_text(encoding="utf-8")
 
 
 def test_cli_reverse_proxy_external_with_network(tmp_path: Path) -> None:
@@ -590,7 +590,7 @@ def test_scaffold_proxy_writes_readme_and_joins_network(tmp_path: Path) -> None:
     write_project(config, tmp_path / "demo")
     readme = tmp_path / "demo" / "infra" / "proxy" / "README.md"
     assert readme.is_file()
-    assert "ia-eknorr/traefik-reverse-proxy" in readme.read_text(encoding="utf-8")
+    assert "etknorr/traefik-reverse-proxy" in readme.read_text(encoding="utf-8")
     # The compose still wires the gateway to the scaffolded network.
     parsed = _parse((tmp_path / "demo" / "docker-compose.yaml").read_text(encoding="utf-8"))
     assert "proxy" in parsed["services"]["gateway"]["networks"]

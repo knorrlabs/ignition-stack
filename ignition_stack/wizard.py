@@ -42,7 +42,7 @@ Step order:
    behind a "Customize?" confirm; declining accepts the lean default.
 9. **Exposure** - host ports (default) or a reverse proxy. Choosing the proxy
    detects an existing ``proxy`` Docker network and offers to join it, else asks
-   for the network name or scaffolds ``ia-eknorr/traefik-reverse-proxy``.
+   for the network name or scaffolds ``etknorr/traefik-reverse-proxy``.
 10. **Summary** - a three-way select: *generate* (write the project),
     *tweak* (hand the built+resolved config to the composer pre-filled),
     or *cancel* (abort).
@@ -629,7 +629,7 @@ def _edition_choices_for(arch_slug: str) -> list[tuple[str, str]]:
     ]
 
 
-# The network ia-eknorr/traefik-reverse-proxy creates by default. Detecting it
+# The network etknorr/traefik-reverse-proxy creates by default. Detecting it
 # lets the wizard offer "join the proxy you already run" before asking anything.
 _DEFAULT_PROXY_NETWORK = "proxy"
 
@@ -664,7 +664,7 @@ def _ask_reverse_proxy(prompter: Prompter, default: ReverseProxyConfig | None = 
 
     Host ports (the default, least-surprising answer) returns ``None`` - today's
     plain ``localhost:<port>`` mapping. Choosing the proxy detects a ``proxy``
-    network (``ia-eknorr/traefik-reverse-proxy``'s default) and offers to join
+    network (``etknorr/traefik-reverse-proxy``'s default) and offers to join
     it; otherwise the user names their proxy's network or scaffolds the repo. The
     leading mode select carries the Back affordance; the proxy sub-questions do
     not. ``default`` (a prior :class:`ReverseProxyConfig` or ``None``) only
@@ -695,7 +695,7 @@ def _ask_reverse_proxy(prompter: Prompter, default: ReverseProxyConfig | None = 
         "Proxy network",
         [
             ("named", "Name an existing network"),
-            ("scaffold", "Scaffold ia-eknorr/traefik-reverse-proxy"),
+            ("scaffold", "Scaffold etknorr/traefik-reverse-proxy"),
         ],
         default="named",
     )
