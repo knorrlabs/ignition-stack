@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/ia-eknorr/ignition-stack/actions/workflows/ci.yml/badge.svg)](https://github.com/ia-eknorr/ignition-stack/actions/workflows/ci.yml)
 [![Docs](https://github.com/ia-eknorr/ignition-stack/actions/workflows/docs.yml/badge.svg)](https://github.com/ia-eknorr/ignition-stack/actions/workflows/docs.yml)
-[![Documentation](https://img.shields.io/badge/docs-ia--eknorr.github.io-blue)](https://ia-eknorr.github.io/ignition-stack/)
+[![Documentation](https://img.shields.io/badge/docs-knorrlabs.github.io-blue)](https://knorrlabs.github.io/ignition-stack/)
 
 CLI that generates ready-to-run Docker Compose stacks for Ignition 8.3 SCADA demos and SE engagements. Pick a system architecture (`basic`, `scale-out`, or `hub-and-spoke`), layer on services, and it writes a self-contained project: a hand-readable compose file, `.env`, file-config seed resources, and a `POST-SETUP.md` listing only what could not be pre-seeded.
 
