@@ -2,7 +2,7 @@ import type * as Preset from "@docusaurus/preset-classic";
 import type { Config } from "@docusaurus/types";
 import { themes as prismThemes } from "prism-react-renderer";
 
-// The site is served from GitHub Pages at https://ia-eknorr.github.io/ignition-stack/.
+// The site is served from GitHub Pages at https://knorrlabs.github.io/ignition-stack/.
 // The deploy wiring itself lands in Phase 9; url/baseUrl are set here so internal
 // links and asset paths resolve the same locally and in production.
 const config: Config = {
@@ -10,10 +10,10 @@ const config: Config = {
   tagline:
     "Generate ready-to-run Docker Compose stacks for Ignition 8.3 SCADA demos and SE engagements.",
   favicon: "img/favicon.ico",
-  url: "https://ia-eknorr.github.io",
+  url: "https://knorrlabs.github.io",
   baseUrl: "/ignition-stack/",
 
-  organizationName: "ia-eknorr",
+  organizationName: "knorrlabs",
   projectName: "ignition-stack",
 
   future: {
@@ -79,7 +79,7 @@ const config: Config = {
           // under /docs, so the getting-started page is the landing page.
           routeBasePath: "/",
           sidebarPath: "./sidebars.ts",
-          editUrl: "https://github.com/ia-eknorr/ignition-stack/tree/main/docs/",
+          editUrl: "https://github.com/knorrlabs/ignition-stack/tree/main/docs/",
         },
         blog: false,
         theme: {
@@ -109,7 +109,7 @@ const config: Config = {
       items: [
         { type: "docSidebar", sidebarId: "docs", position: "left", label: "Docs" },
         {
-          href: "https://github.com/ia-eknorr/ignition-stack",
+          href: "https://github.com/knorrlabs/ignition-stack",
           label: "GitHub",
           position: "right",
         },
@@ -130,10 +130,10 @@ const config: Config = {
         {
           title: "More",
           items: [
-            { label: "GitHub", href: "https://github.com/ia-eknorr/ignition-stack" },
+            { label: "GitHub", href: "https://github.com/knorrlabs/ignition-stack" },
             {
               label: "Changelog",
-              href: "https://github.com/ia-eknorr/ignition-stack/blob/main/CHANGELOG.md",
+              href: "https://github.com/knorrlabs/ignition-stack/blob/main/CHANGELOG.md",
             },
           ],
         },

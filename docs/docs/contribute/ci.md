@@ -48,7 +48,7 @@ The default `pytest` run excludes the marker, so you only pay for the boot when 
 
 The `cli-reference` job checks that `reference/cli.md` still matches the live Typer command tree. The `build` job builds the Docusaurus site, which fails on any broken internal link.
 
-On a push to `main`, the `build` job packages the built site and the `deploy` job publishes it to GitHub Pages at [ia-eknorr.github.io/ignition-stack](https://ia-eknorr.github.io/ignition-stack/). Pull requests build the site to catch breakage but never publish.
+On a push to `main`, the `build` job packages the built site and the `deploy` job publishes it to GitHub Pages at [knorrlabs.github.io/ignition-stack](https://knorrlabs.github.io/ignition-stack/). Pull requests build the site to catch breakage but never publish.
 
 The deploy job needs Pages set to build from GitHub Actions. In the repository settings, under **Pages**, set the source to **GitHub Actions**. Without that, the `deploy-pages` step has nowhere to publish.
 
