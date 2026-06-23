@@ -13,7 +13,7 @@ const config: Config = {
   url: "https://ia-eknorr.github.io",
   baseUrl: "/ignition-stack/",
 
-  organizationName: "ia-eknorr",
+  organizationName: "knorrlabs",
   projectName: "ignition-stack",
 
   future: {
@@ -79,7 +79,7 @@ const config: Config = {
           // under /docs, so the getting-started page is the landing page.
           routeBasePath: "/",
           sidebarPath: "./sidebars.ts",
-          editUrl: "https://github.com/ia-eknorr/ignition-stack/tree/main/docs/",
+          editUrl: "https://github.com/knorrlabs/ignition-stack/tree/main/docs/",
         },
         blog: false,
         theme: {
@@ -109,7 +109,7 @@ const config: Config = {
       items: [
         { type: "docSidebar", sidebarId: "docs", position: "left", label: "Docs" },
         {
-          href: "https://github.com/ia-eknorr/ignition-stack",
+          href: "https://github.com/knorrlabs/ignition-stack",
           label: "GitHub",
           position: "right",
         },
@@ -130,10 +130,10 @@ const config: Config = {
         {
           title: "More",
           items: [
-            { label: "GitHub", href: "https://github.com/ia-eknorr/ignition-stack" },
+            { label: "GitHub", href: "https://github.com/knorrlabs/ignition-stack" },
             {
               label: "Changelog",
-              href: "https://github.com/ia-eknorr/ignition-stack/blob/main/CHANGELOG.md",
+              href: "https://github.com/knorrlabs/ignition-stack/blob/main/CHANGELOG.md",
             },
           ],
         },
