@@ -2,7 +2,7 @@ import type * as Preset from "@docusaurus/preset-classic";
 import type { Config } from "@docusaurus/types";
 import { themes as prismThemes } from "prism-react-renderer";
 
-// The site is served from GitHub Pages at https://ia-eknorr.github.io/ignition-stack/.
+// The site is served from GitHub Pages at https://knorrlabs.github.io/ignition-stack/.
 // The deploy wiring itself lands in Phase 9; url/baseUrl are set here so internal
 // links and asset paths resolve the same locally and in production.
 const config: Config = {
@@ -10,7 +10,7 @@ const config: Config = {
   tagline:
     "Generate ready-to-run Docker Compose stacks for Ignition 8.3 SCADA demos and SE engagements.",
   favicon: "img/favicon.ico",
-  url: "https://ia-eknorr.github.io",
+  url: "https://knorrlabs.github.io",
   baseUrl: "/ignition-stack/",
 
   organizationName: "knorrlabs",
