@@ -1,6 +1,6 @@
 ---
 title: Expose gateways through a reverse proxy
-description: Route gateways through a Traefik reverse proxy instead of host ports, joining a proxy you already run or scaffolding ia-eknorr/traefik-reverse-proxy.
+description: Route gateways through a Traefik reverse proxy instead of host ports, joining a proxy you already run or scaffolding etknorr/traefik-reverse-proxy.
 ---
 
 # Expose gateways through a reverse proxy
@@ -14,7 +14,7 @@ The routing host is `<route>.localtest.me`, where `<route>` is the project name 
 | Mode | Flag | What it does |
 | --- | --- | --- |
 | external | `--reverse-proxy external` | Joins a proxy you already run on `--proxy-network` (default `proxy`). |
-| scaffold | `--reverse-proxy scaffold` | Also lays down the [ia-eknorr/traefik-reverse-proxy](https://github.com/ia-eknorr/traefik-reverse-proxy) README under `--proxy-path` (default `reverse-proxy/`) so you can stand the proxy up. |
+| scaffold | `--reverse-proxy scaffold` | Also lays down the [etknorr/traefik-reverse-proxy](https://github.com/etknorr/traefik-reverse-proxy) README under `--proxy-path` (default `reverse-proxy/`) so you can stand the proxy up. |
 
 ```sh
 ignition-stack create demo --arch scale-out --reverse-proxy external
@@ -38,7 +38,7 @@ Choosing **Reverse proxy** detects whether a `proxy` Docker network already exis
 ```text
 ? Proxy network
 > Name an existing network
-  Scaffold ia-eknorr/traefik-reverse-proxy
+  Scaffold etknorr/traefik-reverse-proxy
 ```
 
 ## What gets generated

@@ -429,9 +429,9 @@ class ReverseProxyConfig(BaseModel):
     proxy is the front door). Two modes:
 
     - ``mode="external"`` - join a proxy the user already runs (the default
-      ``ia-eknorr/traefik-reverse-proxy`` creates a network named ``proxy``).
+      ``etknorr/traefik-reverse-proxy`` creates a network named ``proxy``).
       Nothing is scaffolded; the stack only attaches to ``network``.
-    - ``mode="scaffold"`` - lay down the ``ia-eknorr/traefik-reverse-proxy``
+    - ``mode="scaffold"`` - lay down the ``etknorr/traefik-reverse-proxy``
       README at ``path`` (the CLI never clones it silently) AND wire the stack to
       the ``network`` that scaffold will create. ``path`` is only meaningful here.
     """
@@ -446,7 +446,7 @@ class ReverseProxyConfig(BaseModel):
         default="external",
         description=(
             "'external' joins a proxy the user already runs; 'scaffold' also lays "
-            "down the ia-eknorr/traefik-reverse-proxy README at 'path' and wires "
+            "down the etknorr/traefik-reverse-proxy README at 'path' and wires "
             "the stack to the network that scaffold creates."
         ),
     )
@@ -454,7 +454,7 @@ class ReverseProxyConfig(BaseModel):
         default="proxy",
         description=(
             "External Docker network the proxy routes on. 'proxy' is the default "
-            "ia-eknorr/traefik-reverse-proxy creates; the gateways join it as an "
+            "etknorr/traefik-reverse-proxy creates; the gateways join it as an "
             "'external: true' network so Traefik can reach them."
         ),
     )

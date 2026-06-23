@@ -11,7 +11,7 @@ slug: /
 The goal is a stack that comes up with no UI prompts. Commissioning is env-driven and connections are file-seeded wherever Ignition 8.3 allows it, so `docker compose up -d` reaches a running gateway on its own.
 
 ```sh
-pipx install git+https://github.com/ia-eknorr/ignition-stack.git
+pipx install git+https://github.com/knorrlabs/ignition-stack.git
 ignition-stack create demo --arch basic
 cd demo && docker compose up -d
 ```
@@ -27,7 +27,7 @@ A generated project is plain Docker Compose with no hidden state. The CLI resolv
 - **[Concepts](./concepts/how-generation-works.md)** explain how generation, the capability resolver, the configuration record, and seeding work.
 - **[Guides](./guides/teardown.md)** cover the day-to-day tasks: tearing a stack down, declarative config, and more.
 - **[Reference](./reference/cli.md)** is the lookup layer: every CLI command and the Ignition 8.3 seeding matrix.
-- **[Changelog](https://github.com/ia-eknorr/ignition-stack/blob/main/CHANGELOG.md)** is what's new in each release.
+- **[Changelog](https://github.com/knorrlabs/ignition-stack/blob/main/CHANGELOG.md)** is what's new in each release.
 
 ## Every stack is re-runnable
 

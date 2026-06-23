@@ -64,7 +64,7 @@ _GATEWAY_NETWORK_LINK_REASON = (
 _MCP_MODULE_REASON = "The Ignition MCP module is Early-Access and gated behind a survey, so the " "CLI cannot bundle it. Request the .modl, drop it in, and re-up the stack."
 _REVERSE_PROXY_SCAFFOLD_REASON = (
     "The CLI never clones a proxy silently. A README was scaffolded that walks "
-    "through installing ia-eknorr/traefik-reverse-proxy in front of the stack; "
+    "through installing etknorr/traefik-reverse-proxy in front of the stack; "
     "the gateways already carry the Traefik labels and join its network."
 )
 _REVERSE_PROXY_EXTERNAL_REASON = (

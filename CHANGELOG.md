@@ -181,7 +181,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Reverse proxy now actually routes the gateways.** The wizard's proxy
   question is redesigned: the first prompt is exposure — host ports (default) or
   a reverse proxy. Choosing the proxy detects an existing `proxy` Docker network
-  (the one `ia-eknorr/traefik-reverse-proxy` creates) and offers to join it,
+  (the one `etknorr/traefik-reverse-proxy` creates) and offers to join it,
   otherwise asks for the network name or scaffolds the repo. When a proxy is
   selected the compose engine attaches every gateway to the external proxy
   network and emits the Traefik labels Traefik needs — `traefik.enable=true`, a
@@ -447,19 +447,19 @@ RUNNING with no manual UI steps.
 ### Distribution
 
 - Installable with `pipx install ignition-stack` from PyPI, or from source with
-  `pipx install git+https://github.com/ia-eknorr/ignition-stack.git`.
+  `pipx install git+https://github.com/knorrlabs/ignition-stack.git`.
 - Releases publish to PyPI automatically through GitHub Actions using Trusted
   Publishing (OIDC), with no stored API token.
 
-[Unreleased]: https://github.com/ia-eknorr/ignition-stack/compare/v0.9.0...HEAD
-[0.9.0]: https://github.com/ia-eknorr/ignition-stack/compare/v0.8.0...v0.9.0
-[0.8.0]: https://github.com/ia-eknorr/ignition-stack/compare/v0.7.0...v0.8.0
-[0.7.0]: https://github.com/ia-eknorr/ignition-stack/compare/v0.6.1...v0.7.0
-[0.6.1]: https://github.com/ia-eknorr/ignition-stack/compare/v0.6.0...v0.6.1
-[0.6.0]: https://github.com/ia-eknorr/ignition-stack/compare/v0.5.0...v0.6.0
-[0.5.0]: https://github.com/ia-eknorr/ignition-stack/compare/v0.4.0...v0.5.0
-[0.4.0]: https://github.com/ia-eknorr/ignition-stack/compare/v0.3.0...v0.4.0
-[0.3.0]: https://github.com/ia-eknorr/ignition-stack/compare/v0.2.0...v0.3.0
-[0.2.0]: https://github.com/ia-eknorr/ignition-stack/compare/v0.1.1...v0.2.0
-[0.1.1]: https://github.com/ia-eknorr/ignition-stack/releases/tag/v0.1.1
-[0.1.0]: https://github.com/ia-eknorr/ignition-stack/releases/tag/v0.1.0
+[Unreleased]: https://github.com/knorrlabs/ignition-stack/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/knorrlabs/ignition-stack/compare/v0.8.0...v0.9.0
+[0.8.0]: https://github.com/knorrlabs/ignition-stack/compare/v0.7.0...v0.8.0
+[0.7.0]: https://github.com/knorrlabs/ignition-stack/compare/v0.6.1...v0.7.0
+[0.6.1]: https://github.com/knorrlabs/ignition-stack/compare/v0.6.0...v0.6.1
+[0.6.0]: https://github.com/knorrlabs/ignition-stack/compare/v0.5.0...v0.6.0
+[0.5.0]: https://github.com/knorrlabs/ignition-stack/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/knorrlabs/ignition-stack/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/knorrlabs/ignition-stack/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/knorrlabs/ignition-stack/compare/v0.1.1...v0.2.0
+[0.1.1]: https://github.com/knorrlabs/ignition-stack/releases/tag/v0.1.1
+[0.1.0]: https://github.com/knorrlabs/ignition-stack/releases/tag/v0.1.0

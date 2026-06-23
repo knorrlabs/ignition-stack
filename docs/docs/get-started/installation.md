@@ -14,8 +14,8 @@ pipx install ignition-stack
 To install from source instead - the latest off `main`, or a specific branch:
 
 ```sh
-pipx install git+https://github.com/ia-eknorr/ignition-stack.git
-pipx install git+https://github.com/ia-eknorr/ignition-stack.git@<branch>
+pipx install git+https://github.com/knorrlabs/ignition-stack.git
+pipx install git+https://github.com/knorrlabs/ignition-stack.git@<branch>
 ```
 
 Confirm it is on your path:

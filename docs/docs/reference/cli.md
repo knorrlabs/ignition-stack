@@ -45,7 +45,7 @@ ignition-stack create [OPTIONS] NAME
 - `--spokes` `INTEGER` (default `3`): Spoke gateway count for the hub-and-spoke architecture (ignored otherwise).
 - `--frontends` `INTEGER` (default `1`): Frontend gateway count for the scale-out architecture (ignored otherwise).
 - `--network-split`, `--no-network-split` (flag): Force the frontend/backend network split on or off. Default follows the architecture (scale-out splits, hub-and-spoke does not).
-- `--reverse-proxy` `TEXT`: Route gateways through a Traefik reverse proxy instead of host ports. 'external' joins a proxy you already run (on --proxy-network); 'scaffold' also lays down the ia-eknorr/traefik-reverse-proxy README at --proxy-path. Omit for plain host-port mapping.
+- `--reverse-proxy` `TEXT`: Route gateways through a Traefik reverse proxy instead of host ports. 'external' joins a proxy you already run (on --proxy-network); 'scaffold' also lays down the etknorr/traefik-reverse-proxy README at --proxy-path. Omit for plain host-port mapping.
 - `--proxy-network` `TEXT` (default `proxy`): External Docker network the proxy routes on (with --reverse-proxy). Defaults to 'proxy'.
 - `--proxy-path` `TEXT` (default `reverse-proxy`): Relative directory the scaffolded proxy README lives in (with --reverse-proxy scaffold).
 - `--force` (flag): Bypass the hub-and-spoke red-tier RAM advisory.

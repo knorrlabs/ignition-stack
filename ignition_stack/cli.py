@@ -146,7 +146,7 @@ def create(
         help=(
             "Route gateways through a Traefik reverse proxy instead of host "
             "ports. 'external' joins a proxy you already run (on --proxy-network); "
-            "'scaffold' also lays down the ia-eknorr/traefik-reverse-proxy README "
+            "'scaffold' also lays down the etknorr/traefik-reverse-proxy README "
             "at --proxy-path. Omit for plain host-port mapping."
         ),
         autocompletion=complete_reverse_proxy,
