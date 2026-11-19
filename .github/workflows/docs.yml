@@ -3,14 +3,15 @@ name: docs
 # Validates the documentation site (the generated CLI reference must match the
 # live Typer command tree, and the site must build with no broken links) and,
 # on a push to main, deploys the built site to GitHub Pages.
+#
+# Pull requests run this workflow unconditionally so its jobs can be required
+# checks: a path-filtered workflow never reports on PRs outside its paths, and
+# a required check that never reports blocks the PR forever. `changes` decides
+# whether the docs jobs have anything to check; when they skip, they count as
+# passing.
 
 on:
   pull_request:
-    paths:
-      - "docs/**"
-      - "ignition_stack/**"
-      - "pyproject.toml"
-      - ".github/workflows/docs.yml"
   push:
     branches: [main]
     paths:
@@ -23,8 +24,35 @@ permissions:
   contents: read
 
 jobs:
+  changes:
+    name: docs-changes
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      docs: ${{ steps.filter.outputs.docs }}
+    steps:
+      - name: Detect docs-relevant changes
+        id: filter
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          # Pushes to main are already path-filtered above.
+          if [ -z "$PR" ]; then
+            echo "docs=true" >> "$GITHUB_OUTPUT"
+          elif gh api --paginate "repos/$REPO/pulls/$PR/files" --jq '.[].filename' \
+              | grep -qE '^(docs/|ignition_stack/|pyproject\.toml$|\.github/workflows/docs\.yml$)'; then
+            echo "docs=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "docs=false" >> "$GITHUB_OUTPUT"
+          fi
+
   cli-reference:
     name: CLI reference drift + page presence
+    needs: changes
+    if: needs.changes.outputs.docs == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -36,6 +64,8 @@ jobs:
 
   build:
     name: Build site
+    needs: changes
+    if: needs.changes.outputs.docs == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
