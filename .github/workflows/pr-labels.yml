@@ -1,0 +1,58 @@
+name: pr-labels
+
+# pull_request_target is safe here only because no PR code is checked out and the title arrives via env.
+on:
+  pull_request_target:
+    types: [opened, edited, reopened]
+
+permissions: {}
+
+jobs:
+  label:
+    name: label
+    runs-on: ubuntu-latest
+    concurrency:
+      group: pr-labels-${{ github.event.pull_request.number }}
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Label from Conventional Commit title
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          managed=(enhancement bug documentation maintenance dependencies)
+          re='^([a-z]+)(\(([^)]*)\))?!?: '
+          want=
+          if [[ $TITLE =~ $re ]]; then
+            type=${BASH_REMATCH[1]} scope=${BASH_REMATCH[3]}
+            # Renovate titles Go module bumps fix(deps):, so the scope wins over the type.
+            if [[ $scope == deps ]]; then
+              want=dependencies
+            else
+              case $type in
+                feat) want=enhancement ;;
+                fix) want=bug ;;
+                docs) want=documentation ;;
+                build|chore|ci|perf|refactor|revert|style|test) want=maintenance ;;
+              esac
+            fi
+          fi
+          echo "title: $TITLE -> ${want:-no label}"
+
+          current=$(gh api "repos/$GH_REPO/issues/$PR/labels" --jq '[.[].name]')
+          for label in "${managed[@]}"; do
+            if [[ $label != "$want" ]] && jq -e --arg l "$label" 'index($l)' <<<"$current" >/dev/null; then
+              gh api -X DELETE "repos/$GH_REPO/issues/$PR/labels/$label" >/dev/null
+            fi
+          done
+
+          if [[ -n $want ]]; then
+            if ! gh api "repos/$GH_REPO/labels/$want" >/dev/null 2>&1; then
+              gh label create "$want" --description "Set from the PR title by pr-labels.yml"
+            fi
+            gh api "repos/$GH_REPO/issues/$PR/labels" -f "labels[]=$want" >/dev/null
+          fi
